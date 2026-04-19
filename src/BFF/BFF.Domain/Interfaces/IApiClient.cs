@@ -1,0 +1,11 @@
+namespace BFF.Domain.Interfaces;
+
+/// <summary>
+/// Abstraction over HTTP calls to the backend API.
+/// The BFF never talks to the database — it always goes through the API.
+/// </summary>
+public interface IApiClient
+{
+    Task<TResponse?> PostAsync<TRequest, TResponse>(string path, TRequest body, CancellationToken ct = default);
+    Task<TResponse?> GetAsync<TResponse>(string path, string? bearerToken = null, CancellationToken ct = default);
+}

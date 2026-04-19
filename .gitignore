@@ -1,0 +1,61 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+*.sln.docstates
+TestResults/
+*.coverage
+*.coveragexml
+[Pp]ublish/
+[Rr]elease/
+[Dd]ebug/
+.nuget/
+packages/
+*.nupkg
+*.snupkg
+
+## ASP.NET
+wwwroot/dist/
+
+## Logs
+*.log
+logs/
+
+## Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+appsettings.local.json
+appsettings.*.local.json
+
+## Node / React
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+## IDE
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.DS_Store
+Thumbs.db
+
+## Coverage
+coverage/
+lcov.info
+
+## Playwright
+frontend/playwright-report/
+frontend/test-results/
+frontend/.playwright-cache/

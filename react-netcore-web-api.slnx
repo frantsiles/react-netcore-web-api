@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Api/">
+    <Project Path="src/Api/Api.Application/Api.Application.csproj" />
+    <Project Path="src/Api/Api.Domain/Api.Domain.csproj" />
+    <Project Path="src/Api/Api.Infrastructure/Api.Infrastructure.csproj" />
+    <Project Path="src/Api/Api.IntegrationTests/Api.IntegrationTests.csproj" />
+    <Project Path="src/Api/Api.UnitTests/Api.UnitTests.csproj" />
+    <Project Path="src/Api/Api.WebApi/Api.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/src/BFF/">
+    <Project Path="src/BFF/BFF.Api/BFF.Api.csproj" />
+    <Project Path="src/BFF/BFF.Application/BFF.Application.csproj" />
+    <Project Path="src/BFF/BFF.Domain/BFF.Domain.csproj" />
+    <Project Path="src/BFF/BFF.Infrastructure/BFF.Infrastructure.csproj" />
+    <Project Path="src/BFF/BFF.Tests/BFF.Tests.csproj" />
+  </Folder>
+</Solution>

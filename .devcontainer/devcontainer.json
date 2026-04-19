@@ -1,0 +1,41 @@
+{
+  "name": "React + .NET BFF Demo",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+
+  // Forward the three service ports
+  "forwardPorts": [5173, 5001, 5002],
+  "portsAttributes": {
+    "5173": { "label": "React Frontend",  "onAutoForward": "openBrowser" },
+    "5001": { "label": "BFF API",         "onAutoForward": "notify" },
+    "5002": { "label": "Backend API",     "onAutoForward": "notify" }
+  },
+
+  // Install dependencies and Playwright browsers after the container is created.
+  // --with-deps installs the OS-level libraries Chromium needs (fonts, libglib, etc.).
+  "postCreateCommand": "dotnet restore && cd frontend && npm install && npx playwright install --with-deps chromium",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[csharp]": {
+          "editor.defaultFormatter": "ms-dotnettools.csharp"
+        }
+      }
+    }
+  }
+}

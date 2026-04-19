@@ -6,7 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Allows Codespaces to forward the port correctly
     host: '0.0.0.0',
+    proxy: {
+      '/bff': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+    },
   },
 })

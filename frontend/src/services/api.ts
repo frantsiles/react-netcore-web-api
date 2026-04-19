@@ -6,7 +6,7 @@ import axios from 'axios';
  * The base URL is read from the Vite env variable VITE_BFF_URL.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BFF_URL ?? 'http://localhost:5001',
+  baseURL: '',
   headers: { 'Content-Type': 'application/json' },
 });
 

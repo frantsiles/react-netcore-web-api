@@ -14,9 +14,9 @@ A demo repository showing how to build a **React** frontend connected to a **.NE
 └─────────────────────┘       └─────────────────────┘       └─────────────────────┘
 ```
 
-- **React** — Vite + TypeScript, React Router v7, React Query v5, Axios
-- **BFF** — .NET 10, validates JWT tokens, proxies API calls, exposes Swagger at `/swagger`
-- **Backend API** — .NET 10, DDD (Domain / Application / Infrastructure / WebApi), MediatR CQRS, FluentValidation, EF Core InMemory, issues JWT tokens, Swagger at `/swagger`
+- **React** — Vite + TypeScript, React Router v7, React Query v5, Axios. API calls go to `/bff/...` on the same origin; the Vite dev server proxies them to the BFF (no hardcoded URLs, works in Codespaces).
+- **BFF** — .NET 9, validates JWT tokens, proxies API calls, exposes Swagger at `/swagger`
+- **Backend API** — .NET 9, DDD (Domain / Application / Infrastructure / WebApi), MediatR CQRS, FluentValidation, EF Core InMemory, issues JWT tokens, Swagger at `/swagger`
 
 ---
 
@@ -24,7 +24,7 @@ A demo repository showing how to build a **React** frontend connected to a **.NE
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| .NET SDK | 10.x | `dotnet --version` |
+| .NET SDK | 9.x | `dotnet --version` |
 | Node.js | 20.x | `node --version` |
 | npm | 10.x | bundled with Node 20 |
 
@@ -34,14 +34,32 @@ A demo repository showing how to build a **React** frontend connected to a **.NE
 
 ## Quick Start
 
-### Option A — GitHub Codespaces (recommended)
+### Option A — One-command startup (recommended)
+
+A single script starts the Backend API, BFF and React frontend in parallel, waits until each port is ready, then prints the URLs:
+
+```bash
+./start.sh
+```
+
+Press `Ctrl+C` to stop all three services at once.
+
+Logs are written to:
+
+| Service | Log file |
+|---------|----------|
+| Backend API | `/tmp/api.log` |
+| BFF | `/tmp/bff.log` |
+| Frontend | `/tmp/frontend.log` |
+
+### Option B — GitHub Codespaces (manual)
 
 1. Click **Code → Codespaces → Create codespace on main**.
 2. Wait for the container to build (~2 min). Dependencies are installed automatically.
-3. Open **three terminals** and run one service per terminal (see [Running the services](#running-the-services) below).
+3. Run `./start.sh` or open three terminals and start each service individually (see below).
 4. The browser tab for React (port 5173) opens automatically once Vite is ready.
 
-### Option B — Local development
+### Option C — Local development (manual)
 
 ```bash
 # 1. Restore .NET dependencies
@@ -54,13 +72,13 @@ npx playwright install --with-deps chromium
 cd ..
 ```
 
-Then start each service in a separate terminal (see below).
+Then run `./start.sh` or start each service in a separate terminal (see below).
 
 ---
 
-## Running the Services
+## Running the Services Individually
 
-Open **three terminals**, one per service. Start them in this order:
+If you prefer to start each service in its own terminal:
 
 ### 1 · Backend API (port 5002)
 
@@ -153,7 +171,7 @@ react-netcore-web-api/
 │   │   ├── components/            # ProtectedRoute
 │   │   ├── contexts/              # AuthContext (JWT + sessionStorage)
 │   │   ├── pages/                 # LoginPage, UsersPage, UnauthorizedPage
-│   │   ├── services/              # api.ts (Axios), authService, userService
+│   │   ├── services/              # api.ts (Axios + Vite proxy), authService, userService
 │   │   └── types/                 # TypeScript interfaces
 │   └── playwright.config.ts
 ├── src/
@@ -170,6 +188,7 @@ react-netcore-web-api/
 │       ├── BFF.Infrastructure/    # HttpClient wrapper (ApiClient)
 │       ├── BFF.Api/               # Controllers, Program.cs, Swagger
 │       └── BFF.Tests/
+├── start.sh                       # One-command startup for all three services
 └── react-netcore-web-api.slnx     # .NET solution file
 ```
 
@@ -200,12 +219,19 @@ Both services in `appsettings.json` use the same secret so the BFF can validate 
 }
 ```
 
-### React BFF URL
+### React → BFF (Vite proxy)
 
-`frontend/.env.development`:
+The frontend never hardcodes the BFF URL. All `/bff/...` requests are intercepted by the Vite dev server and proxied to `http://localhost:5001`. This makes the app work identically in local dev and GitHub Codespaces without any environment-specific configuration.
 
-```
-VITE_BFF_URL=http://localhost:5001
+`frontend/vite.config.ts`:
+
+```ts
+proxy: {
+  '/bff': {
+    target: 'http://localhost:5001',
+    changeOrigin: true,
+  },
+},
 ```
 
 ---
@@ -219,4 +245,5 @@ VITE_BFF_URL=http://localhost:5001
 | **EF Core InMemory** | Zero external dependencies — works in Codespaces and CI out of the box |
 | **DDD layers** | Domain ← Application ← Infrastructure ← WebApi enforces dependency direction; domain logic stays pure |
 | **MediatR + CQRS** | Commands and queries are decoupled from controllers; `ValidationBehavior` pipeline centralises FluentValidation |
+| **Vite proxy for BFF** | Frontend calls `/bff/...` on its own origin; Vite proxies server-side — no CORS issues, no URL changes between local and Codespaces |
 | **Playwright webServer** | E2E tests are self-contained — one command starts all services, runs tests, tears down |

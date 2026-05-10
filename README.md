@@ -14,9 +14,9 @@ A demo repository showing how to build a **React** frontend connected to a **.NE
 └─────────────────────┘       └─────────────────────┘       └─────────────────────┘
 ```
 
-- **React** — Vite + TypeScript, React Router v7, React Query v5, Axios. API calls go to `/bff/...` on the same origin; the Vite dev server proxies them to the BFF (no hardcoded URLs, works in Codespaces).
-- **BFF** — .NET 9, validates JWT tokens, proxies API calls, exposes Swagger at `/swagger`
-- **Backend API** — .NET 9, DDD (Domain / Application / Infrastructure / WebApi), MediatR CQRS, FluentValidation, EF Core InMemory, issues JWT tokens, Swagger at `/swagger`
+- **React 19** — Vite 8 + TypeScript, React Router v7, TanStack Query v5, Axios, **Tailwind CSS v4** (vía `@tailwindcss/vite`), Radix UI primitives + `lucide-react`. Las llamadas a `/bff/...` van al mismo origen; Vite las proxea al BFF (sin URLs hardcodeadas, funciona en Codespaces).
+- **BFF** — .NET 9, valida tokens JWT, proxea llamadas al API, Swagger en `/swagger`
+- **Backend API** — .NET 9, DDD (Domain / Application / Infrastructure / WebApi), MediatR CQRS, FluentValidation, EF Core InMemory, emite tokens JWT, Swagger en `/swagger`
 
 ---
 
@@ -39,10 +39,11 @@ A demo repository showing how to build a **React** frontend connected to a **.NE
 A single script starts the Backend API, BFF and React frontend in parallel, waits until each port is ready, then prints the URLs:
 
 ```bash
-./start.sh
+./start.sh        # arranca los 3 servicios
+./stop.sh         # mata cualquier proceso en 5002, 5001 y 5173
 ```
 
-Press `Ctrl+C` to stop all three services at once.
+Press `Ctrl+C` en la terminal de `start.sh` para parar los tres a la vez. Si arrancaste en background o quedaron procesos huérfanos, usa `./stop.sh` (busca por puerto con `lsof`, intenta SIGTERM y luego SIGKILL).
 
 Logs are written to:
 
@@ -111,12 +112,14 @@ App URL: <http://localhost:5173>
 
 ## Demo Credentials
 
-The database is seeded automatically on startup:
+La base de datos se seedea automáticamente al arrancar (`Api.Infrastructure/Persistence/Seed/DataSeeder.cs`):
 
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@demo.com` | `Admin123!` | Admin (all permissions) |
-| `user@demo.com` | `User123!` | Viewer (read-only) |
+| Email | Password | Rol | Permisos |
+|-------|----------|-----|----------|
+| `admin@demo.com` | `Admin123!` | Admin | `users:read`, `users:write`, `users:delete`, `roles:manage` |
+| `user@demo.com` | `User123!` | Viewer | `users:read` |
+
+Las contraseñas se almacenan hasheadas con BCrypt.
 
 ---
 
@@ -161,35 +164,44 @@ npm run test:e2e:report
 ```
 react-netcore-web-api/
 ├── .devcontainer/
-│   └── devcontainer.json          # Codespaces config (Node 20 + Playwright install)
-├── frontend/                      # React application
+│   └── devcontainer.json          # Codespaces (Node 20 + Playwright install)
+├── .github/
+│   └── commit-message-instructions.md   # Estándar Conventional Commits (consumido por Copilot)
+├── .vscode/
+│   └── settings.json              # Apunta Copilot al estándar de commits
+├── .claude/
+│   └── settings.local.json        # Preferencias locales de Claude Code
+├── CLAUDE.md                      # Reglas para Claude Code (delega al estándar de commits)
+├── frontend/                      # Aplicación React
 │   ├── e2e/
 │   │   ├── pages/                 # Page Object Models (LoginPage, UsersPage)
-│   │   ├── auth.spec.ts           # Auth flow E2E tests
-│   │   └── users.spec.ts          # Users page E2E tests
+│   │   ├── auth.spec.ts           # E2E del flujo de autenticación
+│   │   └── users.spec.ts          # E2E de la página de usuarios
 │   ├── src/
-│   │   ├── components/            # ProtectedRoute
+│   │   ├── components/            # ProtectedRoute + componentes UI (shadcn-style)
 │   │   ├── contexts/              # AuthContext (JWT + sessionStorage)
 │   │   ├── pages/                 # LoginPage, UsersPage, UnauthorizedPage
-│   │   ├── services/              # api.ts (Axios + Vite proxy), authService, userService
-│   │   └── types/                 # TypeScript interfaces
+│   │   ├── services/              # api.ts (Axios + interceptor 401), authService, userService
+│   │   └── types/                 # interfaces TypeScript
+│   ├── vite.config.ts             # proxy /bff → :5001, plugin @tailwindcss/vite
 │   └── playwright.config.ts
 ├── src/
 │   ├── Api/                       # Backend API (DDD)
 │   │   ├── Api.Domain/            # Entities, Value Objects, Repository interfaces
 │   │   ├── Api.Application/       # CQRS commands/queries (MediatR), validators
 │   │   ├── Api.Infrastructure/    # EF Core InMemory, JWT, BCrypt, seeding
-│   │   ├── Api.WebApi/            # Controllers, Program.cs, Swagger
-│   │   ├── Api.UnitTests/         # xUnit unit tests
-│   │   └── Api.IntegrationTests/  # xUnit integration tests (WebApplicationFactory)
+│   │   ├── Api.WebApi/            # Controllers (Auth, Users, Health), Program.cs, Swagger
+│   │   ├── Api.UnitTests/         # tests unitarios (xUnit + Moq + FluentAssertions)
+│   │   └── Api.IntegrationTests/  # tests de integración (WebApplicationFactory)
 │   └── BFF/                       # Backend For Frontend
 │       ├── BFF.Domain/
 │       ├── BFF.Application/
-│       ├── BFF.Infrastructure/    # HttpClient wrapper (ApiClient)
-│       ├── BFF.Api/               # Controllers, Program.cs, Swagger
+│       ├── BFF.Infrastructure/    # ApiClient (HttpClient tipado)
+│       ├── BFF.Api/               # Controllers (Auth, Users, Health), Program.cs, Swagger
 │       └── BFF.Tests/
-├── start.sh                       # One-command startup for all three services
-└── react-netcore-web-api.slnx     # .NET solution file
+├── start.sh                       # arranca los 3 servicios en paralelo
+├── stop.sh                        # mata procesos en 5002 / 5001 / 5173
+└── react-netcore-web-api.slnx     # solución .NET
 ```
 
 ---
@@ -247,3 +259,24 @@ proxy: {
 | **MediatR + CQRS** | Commands and queries are decoupled from controllers; `ValidationBehavior` pipeline centralises FluentValidation |
 | **Vite proxy for BFF** | Frontend calls `/bff/...` on its own origin; Vite proxies server-side — no CORS issues, no URL changes between local and Codespaces |
 | **Playwright webServer** | E2E tests are self-contained — one command starts all services, runs tests, tears down |
+| **Tailwind v4 vía plugin Vite** | Sin `tailwind.config.ts` — `@tailwindcss/vite` autogenera la configuración por convención; menos archivos que mantener |
+
+---
+
+## Endpoints
+
+| Servicio | Método | Ruta | Auth |
+|----------|--------|------|------|
+| API | POST | `/api/auth/login` | público |
+| API | GET  | `/api/users` | JWT |
+| API | GET  | `/api/health` | público |
+| BFF | POST | `/bff/auth/login` | público (proxea al API) |
+| BFF | GET  | `/bff/users` | JWT |
+| BFF | GET  | `/bff/health` | público |
+
+---
+
+## Convenciones del repositorio
+
+- **Mensajes de commit:** Conventional Commits en español. Estándar completo en [`.github/commit-message-instructions.md`](.github/commit-message-instructions.md). GitHub Copilot Chat y Claude Code (vía [`CLAUDE.md`](CLAUDE.md)) consumen ese mismo archivo, por lo que cualquier ajuste se hace en un único sitio.
+- **Runtime:** los `.csproj` apuntan a `net9.0`. Si solo tienes el SDK de .NET 10 instalado, exporta `DOTNET_ROLL_FORWARD=Major` antes de `./start.sh`.

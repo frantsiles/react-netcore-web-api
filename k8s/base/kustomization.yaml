@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: demo
+
+resources:
+  - namespace.yaml
+  - api/secret.yaml
+  - api/deployment.yaml
+  - api/service.yaml
+  - bff/deployment.yaml
+  - bff/service.yaml
+  - gateway/deployment.yaml
+  - gateway/service.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - worker/deployment.yaml
+  - rabbitmq/secret.yaml
+  - rabbitmq/statefulset.yaml
+  - rabbitmq/service.yaml
+  - ingress.yaml

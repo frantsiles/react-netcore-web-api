@@ -1,0 +1,239 @@
+# Full stack — app services + message bus (always on)
+# Observability stack (OTel + Prometheus + Loki + Tempo + Grafana) behind profile:
+#
+#   docker compose up                            # app only
+#   docker compose --profile observability up    # app + full observability
+#   docker compose -f docker-compose.infra.yml up # infra only (dev mode)
+
+services:
+
+  # ── Application services ────────────────────────────────────────────────────
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    image: demo/api:latest
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__Secret: ${JWT_SECRET:-CHANGE-THIS-SECRET-IN-PRODUCTION-MIN32CHARS!!}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: demo-api
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=docker"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks: [demo-network]
+    restart: unless-stopped
+
+  bff:
+    build:
+      context: .
+      dockerfile: docker/bff/Dockerfile
+    image: demo/bff:latest
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__Secret: ${JWT_SECRET:-CHANGE-THIS-SECRET-IN-PRODUCTION-MIN32CHARS!!}
+      BackendApi__BaseUrl: http://api:8080/
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: demo-bff
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=docker"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/bff/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks: [demo-network]
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/gateway/Dockerfile
+    image: demo/gateway:latest
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: demo-gateway
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=docker"
+      ReverseProxy__Clusters__bff-cluster__Destinations__bff__Address: http://bff:8080/
+      ReverseProxy__Clusters__api-cluster__Destinations__api__Address: http://api:8080/
+    depends_on:
+      bff:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks: [demo-network]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    image: demo/worker:latest
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: demo-worker
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=docker"
+      MessageBus__Transport: RabbitMQ
+      MessageBus__RabbitMQ__Host: rabbitmq
+      MessageBus__RabbitMQ__VirtualHost: /
+      MessageBus__RabbitMQ__Username: ${RABBITMQ_USER:-admin}
+      MessageBus__RabbitMQ__Password: ${RABBITMQ_PASS:-admin123}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks: [demo-network]
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    image: demo/frontend:latest
+    ports:
+      - "5173:80"
+    depends_on:
+      bff:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    networks: [demo-network]
+    restart: unless-stopped
+
+  # ── Message bus ─────────────────────────────────────────────────────────────
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI → http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks: [demo-network]
+    restart: unless-stopped
+
+  # ── Observability stack (profile: observability) ─────────────────────────────
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.0
+    profiles: [observability]
+    command: ["--config=/etc/otelcol-contrib/otelcol-config.yaml"]
+    volumes:
+      - ./docker/otel-collector/otelcol-config.yaml:/etc/otelcol-contrib/otelcol-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus scrape
+    depends_on: [loki, tempo]
+    networks: [demo-network]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: [observability]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [demo-network]
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.2.1
+    profiles: [observability]
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./docker/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks: [demo-network]
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    profiles: [observability]
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./docker/tempo/tempo-config.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP
+      - "4327:4317"   # OTLP gRPC (remapped — 4317 used by otel-collector)
+    networks: [demo-network]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    profiles: [observability]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASS:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"   # → http://localhost:3001
+    depends_on: [prometheus, loki, tempo]
+    networks: [demo-network]
+    restart: unless-stopped
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+
+volumes:
+  rabbitmq-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:
+
+# ── Networks ─────────────────────────────────────────────────────────────────
+
+networks:
+  demo-network:
+    driver: bridge

@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet new *)"
+      "Bash(dotnet new *)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet build *)",
+      "Bash(./start.sh)",
+      "Bash(curl -s http://localhost:5002/api/health)",
+      "Bash(curl -s http://localhost:5001/bff/health)",
+      "Bash(curl -s -o /dev/null -w \"Frontend HTTP %{http_code}\" http://localhost:5173)"
     ]
   }
 }

@@ -3,9 +3,46 @@ using BFF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using Serilog;
+using Serilog.Formatting.Json;
+using Serilog.Sinks.OpenTelemetry;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Serilog — structured JSON + OTel OTLP sink ───────────────────────────────
+
+builder.Host.UseSerilog((ctx, lc) => lc
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithEnvironmentName()
+    .WriteTo.Console(new JsonFormatter())
+    .WriteTo.OpenTelemetry(opt =>
+    {
+        opt.Endpoint = ctx.Configuration["Otel:Endpoint"] ?? "http://localhost:4317";
+        opt.Protocol = OtlpProtocol.Grpc;
+        opt.ResourceAttributes = new Dictionary<string, object>
+        {
+            ["service.name"] = "demo-bff",
+            ["service.version"] = "1.0.0"
+        };
+    }));
+
+// ── OpenTelemetry — traces + metrics ─────────────────────────────────────────
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("demo-bff", serviceVersion: "1.0.0"))
+    .WithTracing(b => b
+        .AddAspNetCoreInstrumentation(opt => opt.RecordException = true)
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(b => b
+        .AddAspNetCoreInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddOtlpExporter());
 
 // ── Services ─────────────────────────────────────────────────────────────────
 

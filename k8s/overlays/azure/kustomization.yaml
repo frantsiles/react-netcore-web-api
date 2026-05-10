@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# AKS + ACR — replace image names with your Azure Container Registry
+# Replace <ACR_NAME> with the output of: az acr show -n <name> --query loginServer -o tsv
+resources:
+  - ../../base
+
+images:
+  - name: demo/frontend
+    newName: <ACR_NAME>.azurecr.io/demo/frontend
+    newTag: "1.0.0"
+  - name: demo/api
+    newName: <ACR_NAME>.azurecr.io/demo/api
+    newTag: "1.0.0"
+  - name: demo/bff
+    newName: <ACR_NAME>.azurecr.io/demo/bff
+    newTag: "1.0.0"
+  - name: demo/gateway
+    newName: <ACR_NAME>.azurecr.io/demo/gateway
+    newTag: "1.0.0"
+  - name: demo/worker
+    newName: <ACR_NAME>.azurecr.io/demo/worker
+    newTag: "1.0.0"
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+    target:
+      kind: Deployment

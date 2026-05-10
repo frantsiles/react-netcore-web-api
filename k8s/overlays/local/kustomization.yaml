@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# minikube / kind — use locally-built images, never pull from registry
+resources:
+  - ../../base
+
+images:
+  - name: demo/frontend
+    newTag: latest
+  - name: demo/api
+    newTag: latest
+  - name: demo/bff
+    newTag: latest
+  - name: demo/gateway
+    newTag: latest
+  - name: demo/worker
+    newTag: latest
+
+patches:
+  # Never pull — images are loaded into minikube/kind manually
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+    target:
+      kind: Deployment

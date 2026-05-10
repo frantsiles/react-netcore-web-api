@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: demo
+  labels:
+    app: gateway
+    app.kubernetes.io/component: api-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: demo/gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.demo-monitoring.svc.cluster.local:4317"
+            - name: OTEL_SERVICE_NAME
+              value: demo-gateway
+            - name: ReverseProxy__Clusters__bff-cluster__Destinations__bff__Address
+              value: "http://bff:8080/"
+            - name: ReverseProxy__Clusters__api-cluster__Destinations__api__Address
+              value: "http://api:8080/"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,110 @@
+# Infrastructure only — run this while developing services locally (not in containers).
+# Starts: RabbitMQ + full observability stack (OTel Collector, Prometheus, Loki, Tempo, Grafana)
+#
+#   docker compose -f docker-compose.infra.yml up -d
+#
+# Endpoints:
+#   RabbitMQ management:  http://localhost:15672  (admin / admin123)
+#   Grafana:              http://localhost:3001   (admin / admin)
+#   Prometheus:           http://localhost:9090
+#   OTel Collector OTLP:  localhost:4317 (gRPC) / localhost:4318 (HTTP)
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
+    volumes:
+      - rabbitmq-infra-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks: [infra-network]
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.0
+    command: ["--config=/etc/otelcol-contrib/otelcol-config.yaml"]
+    volumes:
+      - ./docker/otel-collector/otelcol-config.yaml:/etc/otelcol-contrib/otelcol-config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    depends_on: [loki, tempo]
+    networks: [infra-network]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-infra-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [infra-network]
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.2.1
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./docker/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-infra-data:/loki
+    ports:
+      - "3100:3100"
+    networks: [infra-network]
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./docker/tempo/tempo-config.yaml:/etc/tempo.yaml:ro
+      - tempo-infra-data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4327:4317"
+    networks: [infra-network]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASS:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-infra-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on: [prometheus, loki, tempo]
+    networks: [infra-network]
+    restart: unless-stopped
+
+volumes:
+  rabbitmq-infra-data:
+  prometheus-infra-data:
+  loki-infra-data:
+  tempo-infra-data:
+  grafana-infra-data:
+
+networks:
+  infra-network:
+    driver: bridge

@@ -6,7 +6,7 @@ RUN dotnet restore src/Worker/Worker.Service/Worker.Service.csproj
 
 COPY src/Worker/ src/Worker/
 RUN dotnet publish src/Worker/Worker.Service/Worker.Service.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app

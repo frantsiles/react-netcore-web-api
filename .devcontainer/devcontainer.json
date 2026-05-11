@@ -27,7 +27,9 @@
         "ms-dotnettools.csharp",
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
-        "ms-vscode.vscode-typescript-next"
+        "ms-vscode.vscode-typescript-next",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg"
       ],
       "settings": {
         "editor.formatOnSave": true,

@@ -19,6 +19,10 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // "Testing" environment skips appsettings.Development.json (which has a real DB connection
+        // string), so AddInfrastructure falls back to InMemory — same provider as the override below.
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(

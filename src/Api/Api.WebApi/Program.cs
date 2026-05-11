@@ -2,7 +2,6 @@ using Api.Application;
 using Api.Application.Common.Interfaces;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
-using Api.Infrastructure.Persistence.Seed;
 using Api.WebApi.Hubs;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -52,7 +51,7 @@ builder.Services.AddOpenTelemetry()
 // ── Services ─────────────────────────────────────────────────────────────────
 
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];
@@ -120,11 +119,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Seed in-memory database on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DataSeeder.SeedAsync(db);
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await DatabaseInitializer.InitializeAsync(db, config, logger);
 }
 
 if (app.Environment.IsDevelopment())

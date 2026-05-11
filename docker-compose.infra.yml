@@ -11,6 +11,25 @@
 
 services:
 
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-demodb}
+      POSTGRES_USER: ${POSTGRES_USER:-demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo123}
+    volumes:
+      - postgres-infra-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-demo} -d ${POSTGRES_DB:-demodb}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    networks: [infra-network]
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     ports:
@@ -99,6 +118,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  postgres-infra-data:
   rabbitmq-infra-data:
   prometheus-infra-data:
   loki-infra-data:

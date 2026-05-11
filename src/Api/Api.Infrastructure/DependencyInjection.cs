@@ -7,20 +7,24 @@ using Api.Infrastructure.Persistence;
 using Api.Infrastructure.Persistence.Repositories;
 using Api.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Infrastructure;
 
-/// <summary>
-/// Registers all Infrastructure services: EF Core InMemory, repositories, and JWT/password services.
-/// Swap AddDbContext provider here when moving to a real database.
-/// </summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+
         services.AddDbContext<AppDbContext>(options =>
-            options.UseInMemoryDatabase("AppDb"));
+        {
+            if (string.IsNullOrEmpty(connectionString))
+                options.UseInMemoryDatabase("AppDb");
+            else
+                options.UseNpgsql(connectionString);
+        });
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();

@@ -24,7 +24,9 @@
       "Bash(dotnet add *)",
       "Bash(dotnet ef *)",
       "Bash(dotnet tool *)",
-      "Bash(chmod +x /workspaces/react-netcore-web-api/scripts/db-reset.sh)"
+      "Bash(chmod +x /workspaces/react-netcore-web-api/scripts/db-reset.sh)",
+      "Read(//var/run/**)",
+      "Read(//usr/lib/**)"
     ]
   }
 }

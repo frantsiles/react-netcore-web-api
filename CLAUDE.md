@@ -34,11 +34,14 @@ React (5173) → YARP Gateway (5000) → BFF (5001) → Backend API (5002)
 
 ## Comandos de desarrollo
 
-### Arrancar todos los servicios (modo legacy, sin Docker)
+### Arrancar la arquitectura completa (Docker)
 
 ```bash
-./start.sh          # lanza los 3 servicios originales en paralelo
-./stop.sh           # mata procesos en puertos 5173, 5001 y 5002
+./start.sh              # app + Postgres + RabbitMQ (vía docker compose up -d --wait)
+./start.sh --obs        # + stack de observabilidad (Grafana/Loki/Tempo/Prometheus)
+./start.sh --build      # fuerza rebuild de imágenes antes de levantar
+./stop.sh               # docker compose down (preserva volúmenes)
+./stop.sh --clean       # docker compose down -v (borra datos de Postgres/RabbitMQ)
 ```
 
 ### Servicios individuales

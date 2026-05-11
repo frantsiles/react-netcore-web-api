@@ -1,48 +1,64 @@
 #!/usr/bin/env bash
-set -e
+# Arranca la arquitectura completa vía docker compose.
+#
+# Uso:
+#   ./start.sh              # app + Postgres + RabbitMQ
+#   ./start.sh --obs        # + stack de observabilidad (Grafana/Loki/Tempo/Prometheus)
+#   ./start.sh --build      # fuerza rebuild de las imágenes antes de levantar
+set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$(dirname "$0")"
 
-echo "==> Starting API (port 5002)..."
-dotnet run --project "$ROOT/src/Api/Api.WebApi/Api.WebApi.csproj" --launch-profile http \
-  > /tmp/api.log 2>&1 &
-API_PID=$!
+PROFILE_ARGS=()
+SHOW_OBS=0
+FORCE_BUILD=0
 
-echo "==> Starting BFF (port 5001)..."
-dotnet run --project "$ROOT/src/BFF/BFF.Api/BFF.Api.csproj" --launch-profile http \
-  > /tmp/bff.log 2>&1 &
-BFF_PID=$!
-
-echo "==> Starting Frontend (port 5173)..."
-cd "$ROOT/frontend" && npm run dev > /tmp/frontend.log 2>&1 &
-FE_PID=$!
-
-echo ""
-echo "PIDs  — API: $API_PID | BFF: $BFF_PID | Frontend: $FE_PID"
-echo "Logs  — /tmp/api.log | /tmp/bff.log | /tmp/frontend.log"
-echo ""
-echo "Waiting for services..."
-
-# Wait until all three ports are accepting connections (max 60s each)
-for port in 5002 5001 5173; do
-  for i in $(seq 1 30); do
-    if curl -s "http://localhost:$port" > /dev/null 2>&1 || \
-       curl -s "http://localhost:$port/health" > /dev/null 2>&1 || \
-       nc -z localhost $port 2>/dev/null; then
-      echo "  ✓ Port $port ready"
-      break
-    fi
-    sleep 2
-  done
+for arg in "$@"; do
+  case "$arg" in
+    --obs|--observability) PROFILE_ARGS+=(--profile observability); SHOW_OBS=1 ;;
+    --build)               FORCE_BUILD=1 ;;
+    -h|--help)
+      sed -n '2,7p' "$0"
+      exit 0
+      ;;
+    *) echo "Argumento no reconocido: $arg" >&2; exit 1 ;;
+  esac
 done
 
-echo ""
-echo "All services up."
-echo "  API Swagger  -> http://localhost:5002/swagger"
-echo "  BFF Swagger  -> http://localhost:5001/swagger"
-echo "  Frontend     -> http://localhost:5173"
-echo ""
-echo "Press Ctrl+C to stop all services."
+if [ ! -f .env ]; then
+  echo "==> Creando .env desde .env.example"
+  cp .env.example .env
+fi
 
-trap "echo ''; echo 'Stopping...'; kill $API_PID $BFF_PID $FE_PID 2>/dev/null; exit 0" INT TERM
-wait
+# Rebuild si se pidió, o si falta alguna imagen de la app
+need_build=$FORCE_BUILD
+for img in demo/api:latest demo/bff:latest demo/gateway:latest demo/worker:latest demo/frontend:latest; do
+  if ! docker image inspect "$img" >/dev/null 2>&1; then
+    need_build=1
+    break
+  fi
+done
+
+if [ "$need_build" = "1" ]; then
+  echo "==> docker compose build"
+  docker compose "${PROFILE_ARGS[@]}" build
+fi
+
+echo "==> docker compose up -d --wait"
+docker compose "${PROFILE_ARGS[@]}" up -d --wait
+
+echo
+echo "Stack listo:"
+echo "  Frontend     -> http://localhost:5173"
+echo "  Gateway      -> http://localhost:5000"
+echo "  BFF Swagger  -> http://localhost:5001/swagger"
+echo "  API Swagger  -> http://localhost:5002/swagger"
+echo "  Postgres     -> localhost:5432   (demo / demo123)"
+echo "  RabbitMQ UI  -> http://localhost:15672  (admin / admin123)"
+if [ "$SHOW_OBS" = "1" ]; then
+  echo "  Grafana      -> http://localhost:3001  (admin / admin)"
+  echo "  Prometheus   -> http://localhost:9090"
+fi
+echo
+echo "Logs   :  docker compose logs -f <servicio>"
+echo "Parar  :  ./stop.sh"

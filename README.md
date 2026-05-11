@@ -14,6 +14,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | **Arquitectura distribuida** | Gateway → BFF → API → Worker. Cada servicio con responsabilidad única y contratos explícitos. |
 | **DDD + CQRS + MediatR** | Backend API con cuatro layers, handlers testeables, validación con FluentValidation. |
 | **Autenticación JWT + Sessions** | Access tokens (15 min) + refresh tokens stateful con rotación. Revocación por sesión en tiempo real. |
+| **Persistencia containerizada** | PostgreSQL 17 en contenedor, EF Core con migraciones y data seeding. Fallback a InMemory si no hay connection string. |
 | **Mensajería asíncrona** | MassTransit sobre RabbitMQ (local) o Azure Service Bus (Azure) con el mismo código. |
 | **Serverless** | Azure Functions v4 isolated con HTTP triggers, timer y Service Bus triggers. |
 | **Observabilidad** | OTel SDK + Collector → Prometheus + Loki + Tempo → Grafana. Correlación log-traza automática. |
@@ -51,7 +52,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 4. [Modo A · Sin Docker (local)](#4-modo-a--sin-docker-local)
 5. [Modo B · Docker Compose](#5-modo-b--docker-compose)
 6. [Modo C · GitHub Codespaces](#6-modo-c--github-codespaces)
-7. [Servicios nuevos — Gateway, Worker, Functions](#7-servicios-nuevos--gateway-worker-functions)
+7. [Componentes — qué resuelve cada capa y cuándo usarla](#7-componentes--qué-resuelve-cada-capa-y-cuándo-usarla)
 8. [Observabilidad — Grafana Stack](#8-observabilidad--grafana-stack)
 9. [Kubernetes — local y Azure AKS](#9-kubernetes--local-y-azure-aks)
 10. [Despliegue en Azure](#10-despliegue-en-azure)
@@ -86,29 +87,29 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 │          YARP API Gateway  ·  .NET 9                                │
 │          localhost:5000  (Docker/K8s: :8080)                        │
 │          Routing · Rate limiting · Health check activo de upstream  │
-└──────────────────┬─────────────────────────���┬───────────────────────┘
+└──────────────────┬────────────────────────────┬───────────────────────┘
                    │ /bff/*                   │ /api/*
                    ▼                          ▼
-┌──────────────────────────┐  ┌────────────────────────────���─────────┐
+┌──────────────────────────┐  ┌────────────────────────────────────────┐
 │  BFF  ·  .NET 9          │  │  Backend API  ·  .NET 9              │
 │  localhost:5001          │  │  localhost:5002                       │
 │  Valida JWT              │  │  DDD + MediatR + CQRS                │
 │  Proxea al API           │  │  FluentValidation                    │
-└──────────────────────────┘  │  EF Core InMemory                    │
+└──────────────────────────┘  │  EF Core + Npgsql                    │
                               │  Emite JWT · Swagger                 │
-                              └──────────────┬───────────────────────┘
-                                             │ publica eventos
-                                             ▼
-                              ┌──────────────────────────────────────┐
-                              │  RabbitMQ  (local)                   │
-                              │  Azure Service Bus  (Azure)          │
-                              └──────────────┬───────────────────────┘
-                                             │ consume
-                              ┌──────────────▼───────────────────────┐
-                              │  Worker Service  ·  .NET 9           │
-                              │  MassTransit  ·  BackgroundService   │
-                              │  UserCreated / UserDeleted consumers │
-                              └──────────────────────────────────────┘
+                              └──────┬────────────────┬──────────────┘
+                                     │                │ publica
+                                     ▼                ▼
+                         ┌──────────────────┐  ┌────────────────────┐
+                         │  PostgreSQL 17   │  │  RabbitMQ (local)  │
+                         │  :5432           │  │  Service Bus(Azure)│
+                         │  Migraciones EF  │  └──────────┬─────────┘
+                         │  Seed automático │             │ consume
+                         └──────────────────┘  ┌──────────▼─────────┐
+                                               │ Worker Service     │
+                                               │ MassTransit        │
+                                               │ Background consumer│
+                                               └────────────────────┘
 
      Azure Functions  (standalone, event-driven)
      ├── HTTP trigger   — GET /functions/users
@@ -161,7 +162,8 @@ OTel Collector
 | Backend runtime | .NET / ASP.NET Core | 9.0 |
 | Patrón | DDD + MediatR + CQRS | - |
 | Validación | FluentValidation | 12 |
-| ORM | EF Core InMemory | 9.0 |
+| Base de datos | PostgreSQL (contenedor) | 17-alpine |
+| ORM | EF Core + Npgsql provider | 9.0 / 9.0 |
 | Autenticación | JWT Bearer | - |
 | API Gateway | YARP ReverseProxy | 2.2 |
 | Message bus | MassTransit + RabbitMQ / Azure Service Bus | 8.3 |
@@ -185,20 +187,32 @@ OTel Collector
 
 ```
 ¿Tienes Docker?
-├── SÍ ──▶ Modo B (Docker Compose) — sección 5
-│          Un solo comando levanta todo, incluyendo RabbitMQ y observabilidad.
+├── SÍ ──▶ Modo B (Docker Compose) — sección 5      ← recomendado
+│          ./start.sh levanta todo: 5 servicios + Postgres + RabbitMQ.
 │
 └── NO ──▶ ¿Usas GitHub Codespaces?
            ├── SÍ ──▶ Modo C (Codespaces) — sección 6
            │          Funciona en el navegador, sin instalar nada.
            │
            └── NO ──▶ Modo A (local sin Docker) — sección 4
-                      Necesitas .NET 9 SDK y Node 20.
+                      `dotnet run` por servicio. Requiere .NET 9 SDK + Node 20.
+```
+
+**Camino corto si ya tienes Docker:**
+
+```bash
+git clone https://github.com/<tu-usuario>/react-netcore-web-api.git
+cd react-netcore-web-api
+./start.sh                # build (primera vez) + docker compose up -d --wait
+# → http://localhost:5173
+./stop.sh                 # baja todo
 ```
 
 ---
 
 ## 4. Modo A · Sin Docker (local)
+
+Útil para iterar rápido en un único servicio con hot-reload y atacar el código con el debugger del IDE. **No recomendado como flujo principal**: el stack containerizado es más representativo de cómo corre la app en producción.
 
 ### Requisitos
 
@@ -219,19 +233,38 @@ cd react-netcore-web-api
 dotnet restore
 
 # 3. Instalar dependencias de frontend
-cd frontend
-npm install
+cd frontend && npm install && cd ..
 npx playwright install --with-deps chromium   # solo si vas a correr tests E2E
-cd ..
 ```
 
-### Arrancar los servicios principales (API + BFF + React)
+### Levantar la infraestructura (Postgres + RabbitMQ + observabilidad)
+
+Para `dotnet run` necesitas Postgres en `localhost:5433` (lo que asume `appsettings.Development.json`):
 
 ```bash
-./start.sh
+docker compose -f docker-compose.infra.yml up -d
 ```
 
-Este script arranca los tres servicios en paralelo, espera a que cada puerto esté listo y te muestra las URLs. Pulsa `Ctrl+C` para pararlos todos a la vez.
+Levanta solo la infraestructura sin las imágenes de la app — los servicios .NET los corres con `dotnet run` y se conectan a Postgres y RabbitMQ del compose de infra.
+
+### Arrancar servicios individualmente
+
+```bash
+# Terminal 1 — Backend API (puerto 5002)
+dotnet run --project src/Api/Api.WebApi
+
+# Terminal 2 — BFF (puerto 5001)
+dotnet run --project src/BFF/BFF.Api
+
+# Terminal 3 — Frontend (puerto 5173)
+cd frontend && npm run dev
+
+# Terminal 4 (opcional) — YARP Gateway (puerto 5000)
+dotnet run --project src/Gateway/Gateway.Api
+
+# Terminal 5 (opcional) — Worker Service
+dotnet run --project src/Worker/Worker.Service
+```
 
 | Servicio | URL | Descripción |
 |----------|-----|-------------|
@@ -241,138 +274,98 @@ Este script arranca los tres servicios en paralelo, espera a que cada puerto est
 | API health | http://localhost:5002/api/health | Liveness check |
 | BFF health | http://localhost:5001/bff/health | Liveness check |
 
-> **¿Los logs?** Se escriben en `/tmp/api.log`, `/tmp/bff.log` y `/tmp/frontend.log`.  
-> Ver en tiempo real: `tail -f /tmp/api.log`
-
-### Parar los servicios
-
-```bash
-# Si arrancaste con ./start.sh y cerraste la terminal (procesos huérfanos):
-./stop.sh
-
-# O manualmente por puerto:
-lsof -ti:5002 | xargs kill -9
-```
-
-### Arrancar servicios individualmente (en terminales separadas)
-
-Para trabajar en un servicio concreto sin levantar los demás:
-
-```bash
-# Terminal 1 — Backend API
-dotnet run --project src/Api/Api.WebApi
-
-# Terminal 2 — BFF
-dotnet run --project src/BFF/BFF.Api
-
-# Terminal 3 — Frontend
-cd frontend && npm run dev
-
-# Terminal 4 (opcional) — YARP Gateway
-dotnet run --project src/Gateway/Gateway.Api
-
-# Terminal 5 (opcional) — Worker Service
-dotnet run --project src/Worker/Worker.Service
-```
-
-> **Nota para juniors:** el Gateway y el Worker **no son obligatorios** para que la app funcione en modo local sin Docker. El Gateway es el punto de entrada en Docker/Kubernetes; el Worker necesita RabbitMQ corriendo.
+> **Nota:** el Gateway y el Worker **no son obligatorios** para iterar en local. El Gateway es el punto de entrada en Docker/K8s; el Worker necesita RabbitMQ corriendo.
 
 ---
 
 ## 5. Modo B · Docker Compose
+
+Flujo principal recomendado. Toda la arquitectura corre en contenedores, igual que en Kubernetes — solo cambia la orquestación.
 
 ### Requisitos
 
 - Docker Desktop (o Docker Engine + Compose plugin)
 - Verificar: `docker --version` y `docker compose version`
 
-### Primer uso
+### Arranque rápido — `start.sh`
 
 ```bash
-# 1. Clonar
-git clone https://github.com/<tu-usuario>/react-netcore-web-api.git
-cd react-netcore-web-api
-
-# 2. Crear el archivo de variables de entorno
-cp .env.example .env
-# Opcional: editar .env y cambiar los valores por defecto
+./start.sh              # app + Postgres + RabbitMQ
+./start.sh --obs        # + stack de observabilidad (Grafana/Loki/Tempo/Prometheus)
+./start.sh --build      # fuerza rebuild de imágenes antes de levantar
+./stop.sh               # docker compose down (preserva volúmenes)
+./stop.sh --clean       # docker compose down -v (borra datos de Postgres/RabbitMQ)
 ```
 
-> **¿Qué hay en `.env`?**  
-> ```
-> JWT_SECRET=CHANGE-THIS-SECRET-IN-PRODUCTION-MIN32CHARS!!
-> RABBITMQ_USER=admin
-> RABBITMQ_PASS=admin123
-> GRAFANA_ADMIN_PASS=admin
-> ```
+`start.sh` se encarga de:
 
-### Opción 1 — Solo la aplicación (recomendado para empezar)
+1. Crear `.env` a partir de `.env.example` si no existe.
+2. Construir las imágenes la primera vez (o con `--build`).
+3. Lanzar `docker compose up -d --wait` para que regrese sólo cuando todos los healthchecks pasen.
+4. Imprimir las URLs disponibles.
 
-Levanta: Frontend + Gateway + BFF + API + RabbitMQ.
+### Servicios que levanta por defecto
 
-```bash
-docker compose up -d
-```
+| Servicio | URL / Puerto | Notas |
+|----------|--------------|-------|
+| Frontend (nginx) | http://localhost:5173 | SPA compilado, proxy a BFF |
+| YARP Gateway | http://localhost:5000 | Punto de entrada único |
+| BFF | http://localhost:5001 | Backend For Frontend |
+| Backend API | http://localhost:5002/swagger | Emite JWT, expone Swagger |
+| **PostgreSQL 17** | localhost:5432 | `demo` / `demo123`, BD `demodb` |
+| RabbitMQ | localhost:5672 / UI:15672 | `admin` / `admin123` |
+| Worker | (sin puerto) | Consume cola `user-events` |
 
-| Servicio | URL |
-|----------|-----|
-| Frontend | http://localhost:5173 |
-| YARP Gateway | http://localhost:5000 |
-| BFF | http://localhost:5001 |
-| Backend API | http://localhost:5002/swagger |
-| RabbitMQ UI | http://localhost:15672 (admin / admin123) |
-
-### Opción 2 — Aplicación + Observabilidad completa
-
-Añade: OTel Collector + Prometheus + Loki + Tempo + Grafana.
-
-```bash
-docker compose --profile observability up -d
-```
+### Con `--obs` se añaden
 
 | Herramienta | URL | Descripción |
 |-------------|-----|-------------|
-| Grafana | http://localhost:3001 | Dashboard principal (admin / admin) |
+| Grafana | http://localhost:3001 | Dashboard unificado (admin / admin) |
 | Prometheus | http://localhost:9090 | Métricas raw |
+| Loki | http://localhost:3100 | Logs agregados |
+| Tempo | http://localhost:3200 | Trazas distribuidas |
 | OTel Collector | localhost:4317 (gRPC) | Receptor OTLP |
 
-### Opción 3 — Solo infraestructura (para desarrollar servicios localmente)
+### Variables de entorno (`.env`)
 
-Levanta solo RabbitMQ y el stack de observabilidad, sin los servicios de la app. Ideal cuando quieres desarrollar con `dotnet run` pero tener la infraestructura disponible.
+```env
+JWT_SECRET=CHANGE-THIS-SECRET-IN-PRODUCTION-MIN32CHARS!!
+POSTGRES_DB=demodb
+POSTGRES_USER=demo
+POSTGRES_PASSWORD=demo123
+RABBITMQ_USER=admin
+RABBITMQ_PASS=admin123
+GRAFANA_ADMIN_PASS=admin
+```
+
+### Solo infraestructura — para iterar con `dotnet run`
+
+Levanta Postgres + RabbitMQ + observabilidad sin las imágenes de la app:
 
 ```bash
 docker compose -f docker-compose.infra.yml up -d
 ```
 
-Luego en tu máquina: `./start.sh` o los servicios individualmente.
+Postgres queda expuesto en **5433** (no 5432) para no chocar con otra instancia en el host, lo que coincide con la connection string de `appsettings.Development.json`.
 
 ### Comandos útiles de Docker Compose
 
 ```bash
-# Ver logs de un servicio en tiempo real
-docker compose logs -f api
-
-# Reconstruir una imagen después de cambios en el código
-docker compose up -d --build api
-
-# Parar todo
-docker compose down
-
-# Parar y borrar volúmenes (base de datos, colas, métricas)
-docker compose down -v
-
-# Ver estado de los contenedores
-docker compose ps
+docker compose logs -f api              # logs en tiempo real de un servicio
+docker compose up -d --build api        # rebuild + restart de un servicio
+docker compose ps                       # estado de los contenedores
+docker compose down                     # parar todo (preserva volúmenes)
+docker compose down -v                  # parar y borrar datos
 ```
 
 ### Cómo funcionan los Dockerfiles
 
-Cada servicio tiene un **multi-stage Dockerfile** en `docker/<servicio>/Dockerfile`:
+Cada servicio .NET tiene un **multi-stage Dockerfile** en `docker/<servicio>/Dockerfile`:
 
-1. **Stage builder** — usa `mcr.microsoft.com/dotnet/sdk:9.0`, copia los `.csproj` primero (caching de capas), restaura paquetes, luego compila y publica.
-2. **Stage final** — usa `mcr.microsoft.com/dotnet/aspnet:9.0` (imagen mínima sin SDK), copia solo los binarios. El usuario es `app` (no root).
+1. **Stage builder** — `mcr.microsoft.com/dotnet/sdk:9.0`, copia los `.csproj` primero (caching de capas) y publica el binario.
+2. **Stage final** — `mcr.microsoft.com/dotnet/aspnet:9.0` (sin SDK), instala `curl` para los healthchecks y arranca el binario como `ENTRYPOINT`.
 
-El frontend usa `node:20-alpine` para compilar el SPA y `nginx:alpine` para servir los archivos estáticos. El nginx incluye un proxy hacia el BFF para `/bff/*`.
+El frontend usa `node:20-alpine` para compilar el SPA y `nginx:alpine` para servirlo. El nginx incluye un proxy `/bff/*` → BFF para que el SPA no haga CORS.
 
 ---
 
@@ -394,79 +387,150 @@ No necesitas instalar nada en tu máquina.
 
 ---
 
-## 7. Servicios nuevos — Gateway, Worker, Functions
+## 7. Componentes — qué resuelve cada capa y cuándo usarla
 
-### YARP API Gateway (`src/Gateway/Gateway.Api`)
-
-**¿Qué es?** Un proxy inverso construido con [YARP (Yet Another Reverse Proxy)](https://microsoft.github.io/reverse-proxy/) que actúa como punto de entrada único en Docker y Kubernetes.
-
-**¿Para qué sirve?**
-- En producción/Docker, el cliente solo habla con el Gateway (puerto 5000).
-- El Gateway hace health checks activos a los servicios upstream (BFF y API).
-- Permite añadir rate limiting, transformaciones de headers y circuit breaker sin tocar los servicios.
-
-**Arrancar:**
-```bash
-dotnet run --project src/Gateway/Gateway.Api
-# Disponible en http://localhost:5000
-# Health: http://localhost:5000/health
-```
-
-**Configuración de rutas** (`appsettings.json`):
-```json
-"ReverseProxy": {
-  "Routes": {
-    "bff-route": { "Match": { "Path": "/bff/{**catch-all}" } },
-    "api-route": { "Match": { "Path": "/api/{**catch-all}" } }
-  }
-}
-```
-
-En Docker/K8s el destino de los clusters se sobreescribe con variables de entorno.
+Esta sección explica el **por qué** detrás de cada elemento de la arquitectura: qué problema concreto resuelve, en qué escenarios es valioso, y cuándo es excesivo. La idea es que puedas decidir, en tu próximo proyecto, cuáles incorporar y cuáles omitir.
 
 ---
 
-### Worker Service con MassTransit (`src/Worker/Worker.Service`)
+### Frontend SPA (`frontend/`)
 
-**¿Qué es?** Un servicio de background que consume mensajes de una cola. Usa [MassTransit](https://masstransit.io/) como abstracción sobre el bus de mensajes.
+**Qué es.** Aplicación React 19 + Vite + TypeScript que en desarrollo corre con el dev server de Vite (HMR) y en Docker/K8s se sirve compilada con `nginx:alpine`.
 
-**¿Para qué sirve?**
-- Procesa eventos de dominio de forma asíncrona (ej. `UserCreated`, `UserDeleted`).
-- **Mismo código** funciona con RabbitMQ en local y con Azure Service Bus en Azure, controlado por la variable `MessageBus:Transport`.
+**Qué resuelve.** Separa el ciclo de vida del cliente del de la API: el frontend puede desplegarse independientemente, escalar horizontalmente como contenido estático (nginx) y cachearse en CDN.
 
-**Arrancar (requiere RabbitMQ):**
-```bash
-# Primero levanta RabbitMQ
-docker compose -f docker-compose.infra.yml up rabbitmq -d
+**Cuándo lo quieres.** Cualquier app web con cierta interactividad, dashboards con estado client-side, o cuando vas a tener apps móviles consumiendo el mismo backend (el contrato HTTP ya está).
 
-# Luego el Worker
-dotnet run --project src/Worker/Worker.Service
-```
+**Cuándo es excesivo.** Para sitios mayoritariamente de lectura o con interacción mínima, MVC server-rendered es más simple, indexable en SEO de forma trivial y no requiere mantener una pipeline de bundling.
 
-**Cambiar el transporte** en `appsettings.json`:
-```json
-"MessageBus": {
-  "Transport": "RabbitMQ",   // o "AzureServiceBus"
-  "RabbitMQ": {
-    "Host": "localhost",
-    "Username": "admin",
-    "Password": "admin123"
-  }
-}
-```
+---
+
+### YARP API Gateway (`src/Gateway/Gateway.Api`)
+
+**Qué es.** Reverse proxy en .NET 9 con [YARP](https://microsoft.github.io/reverse-proxy/). En Docker/K8s es el único servicio expuesto al exterior.
+
+**Qué resuelve.**
+- **Punto de entrada único.** El cliente solo conoce una URL aunque por detrás haya N microservicios.
+- **Concerns transversales.** Rate limiting, autenticación de borde, transformación de headers, circuit breaker — todo aplicado una vez, no por servicio.
+- **Health checks activos.** Detecta upstreams caídos antes de mandarles tráfico.
+- **Routing por path.** `/bff/*` → BFF, `/api/*` → API directamente para casos donde no se necesita el BFF (Swagger admin, healthchecks).
+
+**Cuándo lo quieres.**
+- Cuando tienes ≥2 servicios públicos y quieres una capa para políticas comunes.
+- Cuando despliegas en Kubernetes y quieres un Ingress *del lado de la app* (no del Ingress Controller) para lógica que el Ingress no expresa bien (auth con JWT, header rewriting complejo).
+- Cuando vas a partir un monolito y necesitas ir migrando paths a nuevos servicios sin que el cliente se entere.
+
+**Cuándo es excesivo.**
+- Un único servicio HTTP: nginx o el propio Kestrel detrás del Ingress es suficiente.
+- API consumida solo por scripts internos: añade un hop sin valor.
+- Alternativas: si ya pagas por un API Management gestionado (Azure APIM, AWS API Gateway, Kong), suelen cubrir el caso con menos código.
+
+---
+
+### BFF — Backend For Frontend (`src/BFF/`)
+
+**Qué es.** Servicio .NET intermedio entre el SPA y la API. Tiene la misma estructura en capas que el API (Domain/Application/Infrastructure/Api) pero su `Infrastructure` no habla con BD: habla con la API por HTTP.
+
+**Qué resuelve.**
+- **Agregación de respuestas.** Si una pantalla necesita combinar 3 endpoints, el BFF los une y manda un solo payload al cliente — menos round-trips, menos código en el cliente.
+- **Adaptación de contrato.** El API expone un modelo limpio del dominio; el BFF lo adapta a lo que el SPA necesita pintar.
+- **Aislamiento del API.** El equipo de frontend puede cambiar el BFF sin tocar el API. El API puede evolucionar sin romper el frontend.
+- **Auth segura.** El BFF valida el JWT y puede mantener sesiones server-side (cookies HttpOnly) si quieres evitar tokens en el navegador.
+
+**Cuándo lo quieres.**
+- Tienes **varios clientes** (web, móvil, ext. de Chrome) con necesidades distintas — un BFF por cliente.
+- El API es de uso público o pertenece a otro equipo, y necesitas una capa que evolucione al ritmo del front.
+- Quieres mover lógica de presentación fuera del cliente (cálculos, formateo, joins).
+
+**Cuándo es excesivo.**
+- Un solo cliente con necesidades que coinciden 1:1 con el API: el BFF es un proxy tonto que añade latencia y un servicio más que mantener.
+- Pequeñas apps internas: usa el API directamente.
+
+---
+
+### Backend API (`src/Api/`)
+
+**Qué es.** Servicio .NET con **DDD + CQRS + MediatR** que es la fuente de verdad del dominio. Emite JWTs, aplica migraciones a Postgres, valida con FluentValidation, expone Swagger.
+
+**Qué resuelve.**
+- **Encapsular las reglas de negocio.** Si una regla cambia, cambia en un solo lugar.
+- **Testabilidad.** Los handlers de MediatR son testeables en unit tests sin levantar el host.
+- **Reuso.** Un mismo dominio puede ser consumido por BFF web, BFF móvil, integraciones B2B, etc.
+
+**Cuándo es DDD/CQRS valioso.** Dominios con reglas no triviales (cálculo de tarifas, autorización por contexto, máquinas de estado). Cuando varias personas escriben en el mismo módulo y necesitan navegar con seguridad.
+
+**Cuándo es excesivo.** CRUDs simples sobre 2-3 tablas. Una EFCore + Minimal APIs es más corto y se lee igual de bien.
+
+---
+
+### PostgreSQL 17 (`postgres` en `docker-compose.yml`)
+
+**Qué es.** Base de datos relacional ACID en contenedor. El API se conecta vía Npgsql (provider EF Core para Postgres) y aplica migraciones al arrancar (`DatabaseInitializer.InitializeAsync`).
+
+**Qué resuelve.**
+- **Persistencia real.** Los datos sobreviven al reinicio del proceso de la app.
+- **Transacciones.** Garantías ACID que un message bus o un caché distribuido no te dan.
+- **Consultas potentes.** SQL con joins, agregaciones, índices, full-text, JSON nativo.
+- **Demo de migración EF → Postgres.** Misma capa de datos que en producción, pero corriendo en tu máquina con un único `docker compose up`.
+
+**Por qué Postgres y no SQL Server / MySQL.** Para el demo: licencia permisiva, imagen Alpine pequeña (~80MB), soporte de tipos JSON/array sin extensiones, ampliamente usado en cloud-native.
+
+**Detalle interesante de este repo.** El API tiene **fallback automático a EF Core InMemory** si `ConnectionStrings:DefaultConnection` está vacío (ver [DependencyInjection.cs:23](src/Api/Api.Infrastructure/DependencyInjection.cs#L23)). Esto permite que los tests de integración corran sin Postgres y que la app arranque "a secas" para una demo rápida — pero al levantar con `./start.sh` la connection string se inyecta y se usa Postgres real.
+
+**Cuándo lo quieres.** Casi siempre. La excepción son cargas write-heavy a gran escala donde un store especializado (Cassandra, DynamoDB) saca ventaja, o dominios fundamentalmente document-oriented donde MongoDB simplifica el modelado.
+
+**Cuándo es excesivo.** Para un cache, una cola de tareas o blobs binarios — Redis, RabbitMQ o un object storage son herramientas mejores. No conviertas Postgres en un cajón de sastre.
+
+---
+
+### RabbitMQ — message bus (`rabbitmq` en `docker-compose.yml`)
+
+**Qué es.** Broker AMQP 0-9-1 con UI de gestión en `:15672`. En este proyecto es el transporte que usa MassTransit para mover eventos entre API y Worker.
+
+**Qué resuelve.**
+- **Desacoplamiento temporal.** El API publica `UserCreated` y sigue. El Worker lo procesa cuando puede. Si el Worker está caído, los mensajes esperan en la cola.
+- **Desacoplamiento de despliegue.** API y Worker pueden desplegarse y escalarse de forma independiente.
+- **Retry y dead-lettering.** Si un consumer falla, RabbitMQ puede reintentar o mover el mensaje a una DLQ.
+- **Fan-out.** Un mismo evento puede tener varios consumers (Worker para enviar email, otro para auditoría, otro para indexación).
+
+**Cuándo lo quieres.**
+- Trabajo de fondo que no debe bloquear la respuesta HTTP (envío de email, generación de PDF, cálculo costoso).
+- Comunicación entre servicios donde la **eventual consistency** es aceptable.
+- Workflows largos con pasos que pueden fallar y reintentar de forma independiente.
+
+**Cuándo es excesivo.**
+- Comunicación punto a punto que necesita respuesta inmediata: una llamada HTTP es más simple.
+- Procesos cortos y locales: usar `Channel<T>` o `BackgroundService` con cola en memoria evita la dependencia.
+
+**¿RabbitMQ o Azure Service Bus?** En este repo cambias entre ambos con `MessageBus:Transport` en `appsettings.json` — el código de los consumers no cambia gracias a la abstracción de MassTransit. RabbitMQ es ideal local/on-prem; Service Bus es la opción gestionada en Azure (sin op cost).
+
+---
+
+### Worker Service (`src/Worker/Worker.Service`)
+
+**Qué es.** Proceso `BackgroundService` de .NET 9 que consume mensajes con [MassTransit](https://masstransit.io/). No tiene puerto HTTP — vive de la cola.
+
+**Qué resuelve.** Es el extremo "consumidor" del patrón pub/sub. Procesa eventos publicados por el API sin que el flujo HTTP sea bloqueante. Permite **escalar el consumo** (más réplicas = más throughput) independiente del API.
 
 **Consumers implementados:**
-| Consumer | Mensaje | Acción |
-|----------|---------|--------|
-| `UserCreatedConsumer` | `UserCreated` | Log + procesamiento |
-| `UserDeletedConsumer` | `UserDeleted` | Log + limpieza |
-| `UserRoleChangedConsumer` | `UserRoleChanged` | Log + auditoría |
+| Consumer | Mensaje | Qué hace |
+|----------|---------|----------|
+| `UserCreatedConsumer` | `UserCreated` | Procesa alta de usuario (en demo: log) |
+| `UserDeletedConsumer` | `UserDeleted` | Limpieza post-baja |
+| `UserRoleChangedConsumer` | `UserRoleChanged` | Auditoría de cambio de roles |
+
+**Cuándo lo quieres.**
+- Cuando tienes trabajo asíncrono que justifica un proceso dedicado (no un `Task.Run` perdido en el API).
+- Cuando quieres escalar el procesamiento de eventos sin escalar la API.
+- Cuando el trabajo es lo suficientemente largo o intensivo que metido en el request HTTP daría timeouts.
+
+**Cuándo es excesivo.** Para tareas que tardan milisegundos: hazlas inline o con `IHostedService` dentro del propio API.
 
 ---
 
 ### Azure Functions (`src/Functions/Functions.App`)
 
-**¿Qué es?** Una Function App con el modelo **Isolated Worker** (.NET 9), la forma moderna de Azure Functions que no depende del proceso del host.
+**Qué es.** Function App .NET 9 **isolated worker** con HTTP, Timer y Service Bus triggers. Pensada para ejecutarse en el plan de consumo de Azure (paga por ejecución).
 
 **Triggers implementados:**
 
@@ -478,22 +542,53 @@ dotnet run --project src/Worker/Worker.Service
 | `ProcessUserCreated` | Service Bus | topic `user-events` | Procesa evento UserCreated |
 | `ProcessUserDeleted` | Service Bus | topic `user-events` | Procesa evento UserDeleted |
 
-**Ejecutar localmente** (requiere [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local)):
-```bash
-npm install -g azure-functions-core-tools@4
-
-cd src/Functions/Functions.App
-func start
-```
-
-**¿Por qué Functions + Worker si hacen algo similar?**
+**Worker vs Functions — ¿cuál uso?**
 
 | | Worker Service | Azure Functions |
 |--|----------------|-----------------|
-| Despliegue | Kubernetes pod | Function App (serverless) |
-| Escalado | Manual (réplicas) | Automático según carga |
-| Coste | 24/7 | Solo cuando ejecuta |
-| Ideal para | Procesamiento continuo | Picos, tareas ocasionales |
+| Despliegue | Pod en Kubernetes, contenedor 24/7 | Function App serverless |
+| Escalado | Manual (réplicas) o KEDA | Automático según cola/HTTP |
+| Coste | Capacidad reservada | Solo cuando se ejecuta |
+| Estado en memoria | Posible (instancia long-running) | Stateless, frío al iniciar |
+| Ideal para | Procesamiento continuo, alto throughput | Picos, tareas raras, integraciones |
+
+**Cuándo lo quieres.** Tareas bursty (un import semanal), integraciones reactivas (procesar un evento de Service Bus que ocurre 100 veces al día), o webhooks que reciben tráfico irregular.
+
+**Cuándo es excesivo.** Trabajo continuo: el cold start y el coste por ejecución penalizan. Para 1000 mensajes/segundo constantes el Worker en K8s sale más barato y predecible.
+
+**Ejecutar local:**
+```bash
+npm install -g azure-functions-core-tools@4
+cd src/Functions/Functions.App && func start
+```
+
+---
+
+### Red Docker — `demo-network` (bridge user-defined)
+
+**Qué es.** En `docker-compose.yml` se declara una red bridge llamada `demo-network` y **todos los servicios la comparten**. Docker crea un DNS interno donde el nombre del servicio resuelve a la IP del contenedor.
+
+**Por qué importa.**
+- **Service discovery por nombre.** El BFF llama al API como `http://api:8080/`, no como `http://172.x.y.z`. Si el contenedor se recrea con otra IP, el nombre sigue resolviéndolo.
+- **Aislamiento.** Lo que está en `demo-network` no es alcanzable desde otras redes Docker sin attach explícito.
+- **Solo lo expuesto sale al host.** Postgres y RabbitMQ están en `demo-network` y además hacen `ports: 5432:5432` y `5672:5672` — pero podrías quitar ese mapeo en producción para que solo otros contenedores los vean.
+- **Mapeo equivalente en Kubernetes.** En K8s cada servicio tiene un `Service` con DNS interno (`api.demo.svc.cluster.local`); la migración del modelo mental Compose → K8s es 1:1.
+
+**Hostnames internos en este repo:**
+| Origen → destino | URL usada |
+|------------------|-----------|
+| BFF → API | `http://api:8080/` |
+| Gateway → BFF | `http://bff:8080/` |
+| Gateway → API | `http://api:8080/` |
+| API → Postgres | `Host=postgres;Port=5432` |
+| API → RabbitMQ | `rabbitmq:5672` |
+| Worker → RabbitMQ | `rabbitmq:5672` |
+| Frontend (nginx) → BFF | `http://bff:8080/bff/` |
+| Servicios .NET → OTel Collector | `http://otel-collector:4317` |
+
+**Cuándo lo quieres.** Siempre que tengas más de un contenedor que se hablen entre sí. La red bridge user-defined es el default sano — la red `bridge` por defecto (sin nombre) **no** tiene DNS automático entre servicios.
+
+**Cuándo limitar la red.** En producción, si un servicio no necesita hablar con otro, sepáralo en su propia red. En este demo todo está en una única red por simplicidad.
 
 ---
 
@@ -860,11 +955,13 @@ react-netcore-web-api/
 │   └── devcontainer.json           # Codespaces: .NET 9 + Node 20 + Playwright
 ├── .github/
 │   └── commit-message-instructions.md  # Conventional Commits en español
-├── docker-compose.yml              # Stack completo (app + infra + observabilidad)
-├── docker-compose.infra.yml        # Solo infraestructura (RabbitMQ + observabilidad)
+├── docker-compose.yml              # Stack completo (app + Postgres + RabbitMQ + observabilidad)
+├── docker-compose.infra.yml        # Solo infraestructura (Postgres :5433 + RabbitMQ + observabilidad)
 ├── .env.example                    # Plantilla de variables de entorno
-├── start.sh                        # Arranca API + BFF + React en paralelo
-├── stop.sh                         # Para procesos en puertos 5002/5001/5173
+├── start.sh                        # docker compose up -d --wait (con --obs y --build)
+├── stop.sh                         # docker compose down (con --clean para borrar volúmenes)
+├── scripts/
+│   └── db-reset.sh                 # Reinicia datos de Postgres (DB_RESET=true)
 ├── CLAUDE.md                       # Instrucciones para Claude Code
 └── react-netcore-web-api.slnx      # Solución .NET (todos los proyectos)
 ```
@@ -878,9 +975,20 @@ react-netcore-web-api/
 | Variable | Valor por defecto | Usado por |
 |----------|------------------|-----------|
 | `JWT_SECRET` | `CHANGE-THIS-...` | API + BFF |
+| `POSTGRES_DB` | `demodb` | Postgres + API (connection string) |
+| `POSTGRES_USER` | `demo` | Postgres + API (connection string) |
+| `POSTGRES_PASSWORD` | `demo123` | Postgres + API (connection string) |
 | `RABBITMQ_USER` | `admin` | RabbitMQ + Worker |
 | `RABBITMQ_PASS` | `admin123` | RabbitMQ + Worker |
 | `GRAFANA_ADMIN_PASS` | `admin` | Grafana |
+
+La connection string del API se compone automáticamente desde las variables anteriores en [docker-compose.yml](docker-compose.yml):
+
+```
+ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+```
+
+Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory automáticamente.
 
 ### appsettings.json — API y BFF
 
@@ -979,8 +1087,9 @@ Las contraseñas se guardan hasheadas con BCrypt.
 |----------|---------|
 | **Patrón BFF** | React nunca habla directamente con el API. El BFF es el contrato cliente-servidor; el API puede evolucionar sin romper el frontend |
 | **JWT emitido por API, validado por BFF** | El API es la única fuente de verdad de auth. El BFF solo necesita el secreto compartido, no el almacén de usuarios |
-| **EF Core InMemory** | Cero dependencias externas — funciona en Codespaces, CI y local sin instalar nada |
+| **Postgres en contenedor con fallback InMemory** | El stack containerizado demuestra una BD real (migraciones EF, seed, ACID). Si la connection string está vacía (e.g. tests de integración o demo sin Docker), EF cae a InMemory automáticamente. Lo mejor de ambos mundos: fidelidad de producción + cero fricción para arrancar |
 | **DDD + MediatR + CQRS** | Separa la lógica de negocio de la infraestructura. Los controllers son delgados; los handlers son testeables |
+| **Red Docker `demo-network` única** | Todos los servicios comparten una red bridge user-defined → service discovery por nombre (`http://api:8080`, `Host=postgres`). Simplifica el modelo mental y migra 1:1 a Kubernetes Services. En producción de verdad conviene separar redes por dominio de confianza |
 | **YARP Gateway en Docker/K8s** | Punto de entrada único. Permite añadir rate limiting, circuit breaker y auth centralizada sin tocar los servicios |
 | **MassTransit como abstracción** | El mismo código de consumers funciona con RabbitMQ local o Azure Service Bus en Azure, cambiando solo la configuración |
 | **Vite proxy** | El frontend usa `/bff/...` relativo. Vite proxea en dev, nginx en Docker. Nunca hay URLs hardcodeadas |

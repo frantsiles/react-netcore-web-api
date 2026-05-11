@@ -1,29 +1,25 @@
 #!/usr/bin/env bash
+# Detiene la arquitectura completa.
+#
+# Uso:
+#   ./stop.sh           # baja todos los contenedores (preserva volúmenes)
+#   ./stop.sh --clean   # también borra volúmenes (datos de Postgres, RabbitMQ, etc.)
+set -euo pipefail
 
-PORTS=(5002 5001 5173)
-LABELS=("API" "BFF" "Frontend")
+cd "$(dirname "$0")"
 
-for i in "${!PORTS[@]}"; do
-  port="${PORTS[$i]}"
-  label="${LABELS[$i]}"
-  pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
-  if [ -z "$pids" ]; then
-    echo "  - $label (port $port): not running"
-    continue
-  fi
-  echo "  ✓ Stopping $label (port $port, pids: $pids)"
-  kill $pids 2>/dev/null || true
-  for _ in $(seq 1 10); do
-    sleep 0.3
-    still=$(lsof -ti tcp:"$port" 2>/dev/null || true)
-    [ -z "$still" ] && break
-  done
-  still=$(lsof -ti tcp:"$port" 2>/dev/null || true)
-  if [ -n "$still" ]; then
-    echo "    (force-killing $still)"
-    kill -9 $still 2>/dev/null || true
-  fi
+EXTRA_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --clean) EXTRA_ARGS+=(-v) ;;
+    -h|--help)
+      sed -n '2,7p' "$0"
+      exit 0
+      ;;
+    *) echo "Argumento no reconocido: $arg" >&2; exit 1 ;;
+  esac
 done
 
-echo ""
-echo "All services stopped."
+echo "==> docker compose down ${EXTRA_ARGS[*]-}"
+# Incluimos el profile observability para que también caiga si estaba activo
+docker compose --profile observability down "${EXTRA_ARGS[@]}"

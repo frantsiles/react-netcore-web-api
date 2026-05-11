@@ -156,3 +156,39 @@ Configurado en [`.vscode/settings.json`](../.vscode/settings.json) para usar las
 ```
 
 El paso 3 y 6 son intransferibles al modelo. Son el trabajo de ingeniería.
+
+---
+
+## Fase 7 — Session Management con SignalR
+
+Esta fase implementó refresh tokens stateful + revocación en tiempo real vía SignalR. La complejidad técnica fue la mayor del proyecto hasta ahora.
+
+### Qué generó Claude Code
+
+**Domain layer completo:** `Session`, `DeviceInfo` (value object), `ISessionRepository`. El modelo respetó el patrón de `Entity` y `ValueObject` existentes sin desviaciones. Primer intento correcto.
+
+**Application layer:** Los 7 handlers (LoginCommand actualizado, RefreshTokenCommand, LogoutCommand, GetMySessionsQuery, GetAllActiveSessionsQuery, RevokeSessionCommand y variantes). Correctos en estructura. El único ajuste necesario fue en `RefreshTokenCommandHandler`: el modelo originalmente mantenía la misma `DeviceInfo` del IP de la sesión vieja — revisé que era correcto preservar el IP pero actualizar el UserAgent desde el request actual.
+
+**Infrastructure:** `SessionRepository`, `Sha256TokenHasher`, configuración de `AppDbContext`. Correctos en primer intento. El modelo sabía configurar `OwnsOne` para el value object y el `HasConversion<string>` para el enum.
+
+**SignalR + WebApi:** El modelo resolvió correctamente el problema de dependencia circular (Infrastructure no puede referenciar WebApi) ubicando `SignalRSessionNotifier` en el proyecto WebApi. Este es exactamente el tipo de juicio arquitectónico donde el modelo sorprendió positivamente.
+
+**BFF:** Los nuevos proxies y la extensión de `IApiClient` con `PatchAsync`/`DeleteAsync` fueron generados correctamente. El modelo detectó que la `ApiClient` tenía código duplicado para crear clientes autorizados y lo refactorizó en un método privado.
+
+**Frontend:** El interceptor de refresh en `api.ts` con manejo de cola de requests pendientes durante el refresh fue el componente más complejo. El modelo implementó el patrón correcto de `isRefreshing` + `pendingQueue` sin necesitar correcciones.
+
+### Dónde el juicio humano fue necesario
+
+**1. Decisión de arquitectura SignalR:** El modelo propuso inicialmente poner `SignalRSessionNotifier` en Infrastructure. Yo detecté la dependencia circular e indiqué el problema — el modelo resolvió correctamente ubicándolo en WebApi. La detección del problema fue mía; la solución, del modelo.
+
+**2. Token rotation vs revocación:** El modelo propuso almacenar el hash del access token para validación extra. Rechacé esto — añade complejidad sin beneficio real dado que los access tokens duran solo 15 minutos.
+
+**3. Scope de `ISessionNotifier`:** El modelo propuso `Singleton`. Corrección: debe ser `Scoped` porque depende de `IHubContext<T>` que tiene lifetime de request.
+
+**4. Test de `IsActive_WhenExpired`:** El dominio previene crear sesiones con expiración pasada (invariante correcto). El modelo generó un test que violaba este invariante. Solución: usar reflection para simular la expiración en el test. Este caso evidencia que el modelo no siempre razona sobre las invariantes de dominio al generar tests.
+
+**5. CORS para SignalR:** SignalR requiere `AllowCredentials()` además de los orígenes. El modelo lo omitió en la primera versión del `Program.cs`. Detectado al revisar la configuración.
+
+### Velocidad real
+
+La implementación completa (Domain → Infrastructure → Application → WebApi → BFF → Frontend → Tests → Docs) tomó aproximadamente 2 horas de trabajo AI-augmented. La estimación sin AI: 2-3 días de desarrollo. La diferencia: el modelo elimina el tiempo de búsqueda de documentación y el boilerplate, permitiendo enfocarse en las decisiones de diseño que realmente importan.

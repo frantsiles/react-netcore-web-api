@@ -1,7 +1,9 @@
 using Api.Application;
+using Api.Application.Common.Interfaces;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.Infrastructure.Persistence.Seed;
+using Api.WebApi.Hubs;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -52,6 +54,15 @@ builder.Services.AddOpenTelemetry()
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 
+// SignalR — Azure SignalR Service compatible
+var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];
+var signalRBuilder = builder.Services.AddSignalR();
+if (!string.IsNullOrWhiteSpace(azureSignalRConnectionString))
+    signalRBuilder.AddAzureSignalR(azureSignalRConnectionString);
+
+// Session notifier: depends on SignalR hub, registered here (not in Infrastructure)
+builder.Services.AddScoped<ISessionNotifier, SignalRSessionNotifier>();
+
 builder.Services.AddControllers();
 
 // JWT Authentication — token issued by this API, validated by BFF
@@ -97,12 +108,13 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// CORS: allow BFF and direct Swagger access
+// CORS: allow BFF, frontend and direct Swagger access — SignalR requires credentials
 builder.Services.AddCors(options =>
     options.AddPolicy("Dev", policy =>
         policy.WithOrigins("http://localhost:5173", "http://localhost:5001")
               .AllowAnyHeader()
-              .AllowAnyMethod()));
+              .AllowAnyMethod()
+              .AllowCredentials()));
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
@@ -125,6 +137,7 @@ app.UseCors("Dev");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<SessionHub>("/hubs/sessions");
 
 app.Run();
 

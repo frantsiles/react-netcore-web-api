@@ -1,6 +1,7 @@
 using Api.Application.Common.Interfaces;
 using Api.Domain.Permissions.Repositories;
 using Api.Domain.Roles.Repositories;
+using Api.Domain.Sessions.Repositories;
 using Api.Domain.Users.Repositories;
 using Api.Infrastructure.Persistence;
 using Api.Infrastructure.Persistence.Repositories;
@@ -24,9 +25,11 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
 
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<ITokenHasher, Sha256TokenHasher>();
 
         return services;
     }

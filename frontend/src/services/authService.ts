@@ -6,4 +6,8 @@ export const authService = {
     const { data } = await api.post<LoginResponse>('/bff/auth/login', credentials);
     return data;
   },
+
+  logout: async (refreshToken: string): Promise<void> => {
+    await api.post('/bff/auth/logout', { refreshToken });
+  },
 };

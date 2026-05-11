@@ -20,29 +20,60 @@ public class ApiClient(IHttpClientFactory httpClientFactory) : IApiClient
         string path, TRequest body, CancellationToken ct = default)
     {
         var client = httpClientFactory.CreateClient("BackendApi");
-        var json = JsonSerializer.Serialize(body);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var response = await client.PostAsync(path, content, ct);
+        var response = await client.PostAsync(path, Serialize(body), ct);
         response.EnsureSuccessStatusCode();
+        return await Deserialize<TResponse>(response, ct);
+    }
 
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<TResponse>(responseJson, JsonOptions);
+    public async Task<TResponse?> PostAsync<TRequest, TResponse>(
+        string path, TRequest body, string bearerToken, CancellationToken ct = default)
+    {
+        var client = CreateAuthorizedClient(bearerToken);
+        var response = await client.PostAsync(path, Serialize(body), ct);
+        response.EnsureSuccessStatusCode();
+        return await Deserialize<TResponse>(response, ct);
     }
 
     public async Task<TResponse?> GetAsync<TResponse>(
         string path, string? bearerToken = null, CancellationToken ct = default)
     {
-        var client = httpClientFactory.CreateClient("BackendApi");
-
-        if (!string.IsNullOrWhiteSpace(bearerToken))
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", bearerToken);
+        var client = bearerToken is not null
+            ? CreateAuthorizedClient(bearerToken)
+            : httpClientFactory.CreateClient("BackendApi");
 
         var response = await client.GetAsync(path, ct);
         response.EnsureSuccessStatusCode();
+        return await Deserialize<TResponse>(response, ct);
+    }
 
-        var responseJson = await response.Content.ReadAsStringAsync(ct);
-        return JsonSerializer.Deserialize<TResponse>(responseJson, JsonOptions);
+    public async Task PatchAsync(string path, string bearerToken, CancellationToken ct = default)
+    {
+        var client = CreateAuthorizedClient(bearerToken);
+        var response = await client.PatchAsync(path, new StringContent(""), ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task DeleteAsync(string path, string bearerToken, CancellationToken ct = default)
+    {
+        var client = CreateAuthorizedClient(bearerToken);
+        var response = await client.DeleteAsync(path, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private HttpClient CreateAuthorizedClient(string bearerToken)
+    {
+        var client = httpClientFactory.CreateClient("BackendApi");
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", bearerToken);
+        return client;
+    }
+
+    private static StringContent Serialize<T>(T body)
+        => new(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+    private static async Task<TResponse?> Deserialize<TResponse>(HttpResponseMessage response, CancellationToken ct)
+    {
+        var json = await response.Content.ReadAsStringAsync(ct);
+        return JsonSerializer.Deserialize<TResponse>(json, JsonOptions);
     }
 }

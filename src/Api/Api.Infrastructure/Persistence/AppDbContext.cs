@@ -1,5 +1,6 @@
 using Api.Domain.Permissions;
 using Api.Domain.Roles;
+using Api.Domain.Sessions;
 using Api.Domain.Users;
 using Api.Domain.Users.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<Session> Sessions => Set<Session>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -67,6 +69,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(p => p.Name).IsRequired().HasMaxLength(100);
             entity.Property(p => p.Resource).IsRequired().HasMaxLength(50);
             entity.Property(p => p.Action).IsRequired().HasMaxLength(50);
+        });
+
+        // Session configuration
+        builder.Entity<Session>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.RefreshTokenHash).IsRequired();
+            entity.HasIndex(s => s.RefreshTokenHash).IsUnique();
+            entity.HasIndex(s => s.UserId);
+
+            entity.OwnsOne(s => s.DeviceInfo, di =>
+            {
+                di.Property(d => d.UserAgent).HasColumnName("DeviceInfo_UserAgent").HasMaxLength(500);
+                di.Property(d => d.IpAddress).HasColumnName("DeviceInfo_IpAddress").IsRequired();
+            });
+
+            entity.Property(s => s.RevokedReason)
+                  .HasConversion<string>();
         });
     }
 }

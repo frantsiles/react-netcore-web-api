@@ -6,7 +6,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
 }
 
@@ -24,14 +24,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: response.email,
       fullName: response.fullName,
       permissions: response.permissions,
+      sessionId: response.sessionId,
     };
     sessionStorage.setItem('token', response.token);
+    sessionStorage.setItem('refreshToken', response.refreshToken);
     sessionStorage.setItem('user', JSON.stringify(authUser));
     setUser(authUser);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = sessionStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch {
+        // Best-effort — always clear local state
+      }
+    }
     sessionStorage.removeItem('token');
+    sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('user');
     setUser(null);
   };

@@ -8,5 +8,5 @@ namespace Api.Application.Common.Interfaces;
 /// </summary>
 public interface IJwtTokenGenerator
 {
-    string GenerateToken(User user);
+    string GenerateToken(User user, Guid sessionId);
 }

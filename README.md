@@ -13,7 +13,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 |------|---------------------|
 | **Arquitectura distribuida** | Gateway → BFF → API → Worker. Cada servicio con responsabilidad única y contratos explícitos. |
 | **DDD + CQRS + MediatR** | Backend API con cuatro layers, handlers testeables, validación con FluentValidation. |
-| **Autenticación JWT** | Emitido por el API, validado por el BFF. El frontend nunca toca el API directamente. |
+| **Autenticación JWT + Sessions** | Access tokens (15 min) + refresh tokens stateful con rotación. Revocación por sesión en tiempo real. |
 | **Mensajería asíncrona** | MassTransit sobre RabbitMQ (local) o Azure Service Bus (Azure) con el mismo código. |
 | **Serverless** | Azure Functions v4 isolated con HTTP triggers, timer y Service Bus triggers. |
 | **Observabilidad** | OTel SDK + Collector → Prometheus + Loki + Tempo → Grafana. Correlación log-traza automática. |
@@ -21,6 +21,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | **Kubernetes** | Kustomize con base + overlays local/azure. Liveness/readiness probes, resource limits. |
 | **IaC Azure** | Bicep: AKS + ACR + Service Bus + Key Vault. Script de deploy end-to-end. |
 | **Testing** | Unit (xUnit + Moq + FluentAssertions), integración (WebApplicationFactory), E2E (Playwright). |
+| **SignalR en tiempo real** | SessionHub con grupos por usuario y admin. Compatible con Azure SignalR Service (drop-in). |
 | **Ingeniería AI-augmented** | Claude Code + GitHub Copilot integrados en todo el ciclo. [Ver cómo →](docs/ai-workflow.md) |
 | **CI/CD** | GitHub Actions: tests .NET, build frontend, Docker builds en paralelo, validación de manifiestos K8s. |
 
@@ -38,6 +39,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | [docs/adr/ADR-005](docs/adr/ADR-005-yarp-gateway.md) | YARP como API Gateway .NET-nativo |
 | [docs/adr/ADR-006](docs/adr/ADR-006-opentelemetry-observability.md) | OpenTelemetry como estándar de observabilidad |
 | [docs/adr/ADR-007](docs/adr/ADR-007-kustomize-over-helm.md) | Kustomize en lugar de Helm |
+| [docs/adr/ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) | Refresh tokens stateful + revocación en tiempo real con SignalR |
 
 ---
 
@@ -117,9 +119,16 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 ### Flujo de autenticación
 
 ```
-Browser ──POST /bff/auth/login──▶ BFF ──▶ API (emite JWT)
-Browser ◀──────── JWT ─────────── BFF ◀─────────────────
+Browser ──POST /bff/auth/login──▶ BFF ──▶ API (emite AccessToken + RefreshToken)
+Browser ◀── AccessToken (15min) + RefreshToken (30d) ── BFF ◀────────────────────
 Browser ──GET /bff/users (Bearer)─▶ BFF valida JWT ──▶ API ──▶ DB
+                                                   │
+        AccessToken expira                         ▼
+Browser ──POST /bff/auth/refresh (RefreshToken)──▶ BFF ──▶ API (Token Rotation)
+Browser ◀───────── nuevo AccessToken + RefreshToken ──────────────────────────────
+
+Browser ──WS ws://api:5002/hubs/sessions──▶ SessionHub (directo al API, no vía BFF)
+         notificación en tiempo real cuando se revoca una sesión
 ```
 
 ### Flujo de observabilidad
@@ -148,6 +157,7 @@ OTel Collector
 | UI primitivos | Radix UI + lucide-react | - |
 | Estado servidor | TanStack Query | 5 |
 | HTTP client | Axios | 1.15 |
+| WebSockets | @microsoft/signalr | 10 |
 | Backend runtime | .NET / ASP.NET Core | 9.0 |
 | Patrón | DDD + MediatR + CQRS | - |
 | Validación | FluentValidation | 12 |
@@ -837,8 +847,8 @@ react-netcore-web-api/
 ├── frontend/                       # React SPA
 │   ├── src/
 │   │   ├── contexts/               # AuthContext (JWT + sessionStorage)
-│   │   ├── services/               # api.ts (Axios), authService, userService
-│   │   ├── pages/                  # LoginPage, UsersPage, UnauthorizedPage
+│   │   ├── services/               # api.ts (Axios + refresh interceptor), authService, userService, sessionService, signalRService
+│   │   ├── pages/                  # LoginPage, UsersPage, SessionsPage, AdminSessionsPage, UnauthorizedPage
 │   │   ├── components/             # UI components (Radix + Tailwind)
 │   │   └── types/                  # Tipos TypeScript
 │   ├── e2e/
@@ -883,7 +893,10 @@ react-netcore-web-api/
     "Secret": "...",          // mínimo 32 caracteres, igual en API y BFF
     "Issuer": "demo-api",
     "Audience": "demo-bff",
-    "ExpiresInMinutes": "60"
+    "ExpiresInMinutes": "15"  // access token de corta duración; refresh token dura 30 días
+  },
+  "AzureSignalR": {
+    "ConnectionString": ""    // vacío = SignalR local; rellenar para Azure SignalR Service
   }
 }
 ```
@@ -922,10 +935,25 @@ react-netcore-web-api/
 | Servicio | Método | Ruta | Auth requerida |
 |----------|--------|------|---------------|
 | API | POST | `/api/auth/login` | No |
+| API | POST | `/api/auth/refresh` | No |
+| API | POST | `/api/auth/logout` | JWT |
 | API | GET | `/api/users` | JWT |
+| API | GET | `/api/sessions/my` | JWT |
+| API | GET | `/api/sessions` | JWT · Admin |
+| API | PATCH | `/api/sessions/{id}/revoke` | JWT |
+| API | DELETE | `/api/sessions/my` | JWT |
+| API | DELETE | `/api/admin/users/{userId}/sessions` | JWT · Admin |
+| API | WS | `/hubs/sessions` | JWT (SignalR) |
 | API | GET | `/api/health` | No |
 | BFF | POST | `/bff/auth/login` | No |
+| BFF | POST | `/bff/auth/refresh` | No |
+| BFF | POST | `/bff/auth/logout` | JWT |
 | BFF | GET | `/bff/users` | JWT |
+| BFF | GET | `/bff/sessions/my` | JWT |
+| BFF | GET | `/bff/sessions` | JWT · Admin |
+| BFF | PATCH | `/bff/sessions/{id}/revoke` | JWT |
+| BFF | DELETE | `/bff/sessions/my` | JWT |
+| BFF | DELETE | `/bff/admin/users/{userId}/sessions` | JWT · Admin |
 | BFF | GET | `/bff/health` | No |
 | Gateway | GET | `/health` | No |
 | Functions | GET | `/api/functions/users` | No (demo) |
@@ -957,6 +985,8 @@ Las contraseñas se guardan hasheadas con BCrypt.
 | **MassTransit como abstracción** | El mismo código de consumers funciona con RabbitMQ local o Azure Service Bus en Azure, cambiando solo la configuración |
 | **Vite proxy** | El frontend usa `/bff/...` relativo. Vite proxea en dev, nginx en Docker. Nunca hay URLs hardcodeadas |
 | **Kustomize (no Helm)** | Para un proyecto demo, Kustomize es más legible y directo. Helm tiene más sentido cuando el chart se reutiliza en múltiples deployments |
+| **Refresh tokens stateful** | Permiten revocar sesiones individuales y mantener audit trail. El access token dura 15 min; el refresh token 30 días con rotación en cada uso. [ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) |
+| **SignalR directo al API (no vía BFF)** | El BFF es un proxy REST. Una conexión WebSocket persistente no encaja en ese patrón. El access token JWT es suficiente para autenticar el hub. |
 | **OpenTelemetry SDK nativo** | OTel es el estándar de la industria. Exportar a OTLP permite cambiar el backend (Jaeger, Zipkin, DataDog...) sin tocar el código |
 | **Serilog con sink OTel** | Serilog es más ergonómico que `ILogger` para logging estructurado y es compatible con OTel para la correlación de trazas |
 

@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
+import { SessionsPage } from './pages/SessionsPage';
+import { AdminSessionsPage } from './pages/AdminSessionsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 
 const queryClient = new QueryClient({
@@ -28,6 +30,22 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission="users:read">
                   <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sessions"
+              element={
+                <ProtectedRoute>
+                  <SessionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/sessions"
+              element={
+                <ProtectedRoute requiredPermission="sessions:admin">
+                  <AdminSessionsPage />
                 </ProtectedRoute>
               }
             />

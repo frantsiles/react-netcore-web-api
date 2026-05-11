@@ -14,13 +14,13 @@ namespace Api.Infrastructure.Services;
 /// </summary>
 public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerator
 {
-    public string GenerateToken(User user)
+    public string GenerateToken(User user, Guid sessionId)
     {
         var jwtSettings = configuration.GetSection("Jwt");
         var secret = jwtSettings["Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
         var issuer = jwtSettings["Issuer"] ?? "api";
         var audience = jwtSettings["Audience"] ?? "bff";
-        var expiresInMinutes = int.Parse(jwtSettings["ExpiresInMinutes"] ?? "60");
+        var expiresInMinutes = int.Parse(jwtSettings["ExpiresInMinutes"] ?? "15");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -37,11 +37,10 @@ public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerato
             new(JwtRegisteredClaimNames.Email, user.Email.Value),
             new(JwtRegisteredClaimNames.Name,  user.FullName),
             new(JwtRegisteredClaimNames.Jti,   Guid.NewGuid().ToString()),
+            new("sid", sessionId.ToString()),
         };
 
-        // Each permission becomes a "permission" claim
         claims.AddRange(permissions.Select(p => new Claim("permission", p)));
-        // Roles as standard claims
         claims.AddRange(user.Roles.Select(r => new Claim(ClaimTypes.Role, r.Name)));
 
         var token = new JwtSecurityToken(

@@ -4,10 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { LogOut, Users, ShieldCheck } from 'lucide-react';
+import { LogOut, Users, ShieldCheck, Monitor } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function UsersPage() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { data: users, isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: userService.getAll,
@@ -27,7 +29,11 @@ export function UsersPage() {
             <span className="hidden text-sm text-muted-foreground sm:inline">
               Hola, <strong className="text-foreground">{user?.fullName}</strong>
             </span>
-            <Button variant="outline" size="sm" onClick={logout}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/sessions')}>
+              <Monitor className="h-4 w-4" />
+              Sesiones
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void logout()}>
               <LogOut className="h-4 w-4" />
               Salir
             </Button>

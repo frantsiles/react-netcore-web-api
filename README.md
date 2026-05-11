@@ -7,6 +7,40 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 
 ---
 
+## Capacidades demostradas
+
+| Área | Qué hay en este repo |
+|------|---------------------|
+| **Arquitectura distribuida** | Gateway → BFF → API → Worker. Cada servicio con responsabilidad única y contratos explícitos. |
+| **DDD + CQRS + MediatR** | Backend API con cuatro layers, handlers testeables, validación con FluentValidation. |
+| **Autenticación JWT** | Emitido por el API, validado por el BFF. El frontend nunca toca el API directamente. |
+| **Mensajería asíncrona** | MassTransit sobre RabbitMQ (local) o Azure Service Bus (Azure) con el mismo código. |
+| **Serverless** | Azure Functions v4 isolated con HTTP triggers, timer y Service Bus triggers. |
+| **Observabilidad** | OTel SDK + Collector → Prometheus + Loki + Tempo → Grafana. Correlación log-traza automática. |
+| **Contenedores** | Multi-stage Dockerfiles, Docker Compose con perfiles (app / observabilidad / infra). |
+| **Kubernetes** | Kustomize con base + overlays local/azure. Liveness/readiness probes, resource limits. |
+| **IaC Azure** | Bicep: AKS + ACR + Service Bus + Key Vault. Script de deploy end-to-end. |
+| **Testing** | Unit (xUnit + Moq + FluentAssertions), integración (WebApplicationFactory), E2E (Playwright). |
+| **Ingeniería AI-augmented** | Claude Code + GitHub Copilot integrados en todo el ciclo. [Ver cómo →](docs/ai-workflow.md) |
+| **CI/CD** | GitHub Actions: tests .NET, build frontend, Docker builds en paralelo, validación de manifiestos K8s. |
+
+---
+
+## Documentación adicional
+
+| Documento | Descripción |
+|-----------|-------------|
+| [docs/ai-workflow.md](docs/ai-workflow.md) | Cómo se usó la IA en este proyecto: qué funcionó, qué no, y dónde el juicio humano fue irreemplazable |
+| [docs/adr/ADR-001](docs/adr/ADR-001-bff-pattern.md) | Patrón BFF — por qué el frontend nunca habla directamente con el API |
+| [docs/adr/ADR-002](docs/adr/ADR-002-ddd-cqrs-mediatr.md) | DDD + CQRS + MediatR en el Backend API |
+| [docs/adr/ADR-003](docs/adr/ADR-003-masstransit-transport-abstraction.md) | MassTransit como abstracción del message bus |
+| [docs/adr/ADR-004](docs/adr/ADR-004-ef-core-inmemory.md) | EF Core InMemory — cero dependencias para una demo |
+| [docs/adr/ADR-005](docs/adr/ADR-005-yarp-gateway.md) | YARP como API Gateway .NET-nativo |
+| [docs/adr/ADR-006](docs/adr/ADR-006-opentelemetry-observability.md) | OpenTelemetry como estándar de observabilidad |
+| [docs/adr/ADR-007](docs/adr/ADR-007-kustomize-over-helm.md) | Kustomize en lugar de Helm |
+
+---
+
 ## Índice
 
 1. [Arquitectura](#1-arquitectura)
@@ -25,6 +59,8 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 14. [Credenciales de demo](#14-credenciales-de-demo)
 15. [Decisiones de diseño](#15-decisiones-de-diseño)
 16. [Convenciones del repositorio](#16-convenciones-del-repositorio)
+
+> Documentación extendida en [`docs/`](docs/) — ADRs y workflow AI-augmented.
 
 ---
 
@@ -943,11 +979,16 @@ Se añade un query parameter opcional ?email= al endpoint GET /api/users.
 
 **Ámbitos sugeridos:** `api` · `bff` · `frontend` · `gateway` · `worker` · `functions` · `auth` · `domain` · `infra` · `tests` · `e2e`
 
-### Asistentes de IA integrados
+### Ingeniería AI-augmented
 
-| Herramienta | Cómo está configurada |
-|-------------|----------------------|
-| **Claude Code** | [`CLAUDE.md`](CLAUDE.md) — arquitectura, comandos y skill `/infra` para ayuda con Docker/K8s/Azure |
+El uso de IA no es decorativo — es parte central del showcase. El documento [`docs/ai-workflow.md`](docs/ai-workflow.md) describe en detalle:
+
+- Qué herramientas se usaron (Claude Code CLI + GitHub Copilot IDE) y cómo.
+- El workflow real fase a fase: arquitectura → scaffolding → frontend → infra → tests.
+- Dónde el AI acertó en el primer intento y dónde necesitó corrección.
+- Las reglas de cuándo confiar, cuándo revisar y cuándo descartar el output.
+
+| Herramienta | Configuración |
+|-------------|--------------|
+| **Claude Code** | [`CLAUDE.md`](CLAUDE.md) — arquitectura del sistema, comandos, skill `/infra` |
 | **GitHub Copilot** | [`.vscode/settings.json`](.vscode/settings.json) — apunta al estándar de commits |
-
-> El flujo de trabajo AI-assisted es parte del showcase del proyecto: desde scaffolding inicial hasta generación de manifiestos K8s y templates Bicep, con revisión y corrección humana en cada paso.

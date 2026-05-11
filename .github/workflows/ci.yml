@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Tests .NET (unit + integración)
+  # ──────────────────────────────────────────────
+  dotnet-tests:
+    name: .NET Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Unit tests — API
+        run: >
+          dotnet test src/Api/Api.UnitTests
+          --no-build --configuration Release
+          --logger "trx;LogFileName=unit-api.trx"
+          --results-directory TestResults
+
+      - name: Unit tests — BFF
+        run: >
+          dotnet test src/BFF/BFF.Tests
+          --no-build --configuration Release
+          --logger "trx;LogFileName=unit-bff.trx"
+          --results-directory TestResults
+
+      - name: Integration tests — API
+        run: >
+          dotnet test src/Api/Api.IntegrationTests
+          --no-build --configuration Release
+          --logger "trx;LogFileName=integration-api.trx"
+          --results-directory TestResults
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: .NET Test Results
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+
+  # ──────────────────────────────────────────────
+  # Frontend — type-check + build
+  # ──────────────────────────────────────────────
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ──────────────────────────────────────────────
+  # Docker builds — verifica que las imágenes compilan
+  # ──────────────────────────────────────────────
+  docker-build:
+    name: Docker Build (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            dockerfile: docker/api/Dockerfile
+          - service: bff
+            dockerfile: docker/bff/Dockerfile
+          - service: gateway
+            dockerfile: docker/gateway/Dockerfile
+          - service: worker
+            dockerfile: docker/worker/Dockerfile
+          - service: frontend
+            dockerfile: docker/frontend/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          tags: demo/${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # ──────────────────────────────────────────────
+  # Validación de manifiestos Kubernetes
+  # ──────────────────────────────────────────────
+  k8s-validate:
+    name: K8s Manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate overlay local
+        run: kubectl kustomize k8s/overlays/local > /dev/null
+
+      - name: Validate overlay azure
+        run: kubectl kustomize k8s/overlays/azure > /dev/null

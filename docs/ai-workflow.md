@@ -192,3 +192,39 @@ Esta fase implementó refresh tokens stateful + revocación en tiempo real vía 
 ### Velocidad real
 
 La implementación completa (Domain → Infrastructure → Application → WebApi → BFF → Frontend → Tests → Docs) tomó aproximadamente 2 horas de trabajo AI-augmented. La estimación sin AI: 2-3 días de desarrollo. La diferencia: el modelo elimina el tiempo de búsqueda de documentación y el boilerplate, permitiendo enfocarse en las decisiones de diseño que realmente importan.
+
+---
+
+## Fase 8 — Outbox Pattern + User Commands
+
+Esta fase añadió los tres comandos mutantes sobre `User` (crear, desactivar, cambiar rol) con publicación de eventos al bus garantizada por Outbox Pattern y deduplicación de reintentos vía Idempotency Key.
+
+### Qué generó Claude Code
+
+**Shared.Messages como proyecto nuevo:** El modelo extrajo los records `UserCreated`/`UserDeleted`/`UserRoleChanged` desde `Worker.Service/Messages` a un proyecto compartido sin acoplar a librerías externas. La actualización de los `using` en los consumers del Worker fue automática y correcta.
+
+**Interfaces de Application:** `IEventPublisher` (genérica sobre `where TMessage : class`) e `IIdempotencyCache` con su record `IdempotencyEntry` quedaron en `Common/Interfaces`, replicando el patrón ya establecido para `IPasswordHasher`/`IJwtTokenGenerator`. El modelo no intentó meter dependencias de MassTransit en Application — respetó la separación de capas sin recordatorios.
+
+**Handlers de los tres commands:** Estructura correcta y consistente (validator + handler + command record). El modelo aplicó la regla de "no permitir borrar al último Admin" cargando todos los usuarios y filtrando por rol activo. Es un check correcto aunque no óptimo en N grande; aceptado por simplicidad.
+
+**MassTransit + Outbox en Infrastructure:** `AddEntityFrameworkOutbox<AppDbContext>` con `UsePostgres()` y `UseBusOutbox()`, más las tres llamadas `AddInboxStateEntity`/`AddOutboxStateEntity`/`AddOutboxMessageEntity` en `OnModelCreating`. El modelo replicó la lógica de transports del Worker (RabbitMQ vs Azure Service Bus por `MessageBus:Transport`) sin que tuviera que dictarse línea por línea.
+
+**IdempotencyMiddleware:** Captura de la respuesta vía `MemoryStream` swap del `Response.Body`, restauración en `finally`, cacheo sólo para 2xx. El modelo identificó por su cuenta que cachear errores transitorios sería un anti-patrón.
+
+**Tests con MassTransit TestHarness:** Para integración, sustituir `AddMassTransit` por `AddMassTransitTestHarness` requiere remover los descriptores ya registrados. El modelo generó el filtrado de descriptores por prefijo de namespace `MassTransit` correctamente al primer intento.
+
+### Dónde el juicio humano fue necesario
+
+**1. Versión de paquetes MassTransit:** El blueprint pedía "mismo major que el Worker". Verifiqué `Worker.Service.csproj` antes de continuar — el modelo necesita la verificación explícita o produce versiones desactualizadas si infiere desde su conocimiento general.
+
+**2. Migración EF Core con runtime mismatch:** El entorno tiene .NET 10 pero los proyectos targetean `net9.0`. `dotnet ef` falla sin `DOTNET_ROLL_FORWARD=Major`. El modelo no anticipa este tipo de fricciones de entorno; las descubrí ejecutando y le pasé la solución.
+
+**3. Idempotencia en pruebas:** El test `PostWithIdempotencyKey_CalledTwice_ShouldReturn201BothTimes` debe verificar que la segunda llamada devuelve la respuesta de la primera, no que reejecuta el handler. La forma de afirmar esto (`secondBody.Should().Be(firstBody)`) la propuse explícitamente — el modelo había generado primero un test que sólo verificaba el status code, lo cual no probaba la propiedad de idempotencia.
+
+**4. `User.ChangeRole` semantics:** El modelo propuso `AddRole` (acumulativo) en lugar de reemplazar el rol. Corregí a la semántica del blueprint: limpiar y agregar, dado que el caso de uso supone un único rol activo. Esto evidencia que el modelo no infiere el contrato del dominio sin que se lo digan explícitamente.
+
+**5. Outbox + InMemory en tests:** La primera versión del factory de integración no removía los registros de MassTransit antes de añadir el test harness, lo que dejaba dos buses configurados. Tuve que indicar el filtrado de descriptores. El modelo asumió que `AddMassTransitTestHarness` "tomaría precedencia", lo cual no es el comportamiento real.
+
+### Velocidad real
+
+Implementación completa (Shared.Messages + Application + Infrastructure + Migración + Middleware + Controllers + BFF + Tests + Docs) en aproximadamente 90 minutos AI-augmented. La parte más rápida fue el boilerplate de los tres handlers (validator + handler + DI); lo más lento fue depurar el entorno de tests con MassTransit y EF en memoria. Estimación manual: 1 día y medio.

@@ -16,6 +16,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | **Autenticación JWT + Sessions** | Access tokens (15 min) + refresh tokens stateful con rotación. Revocación por sesión en tiempo real. |
 | **Persistencia containerizada** | PostgreSQL 17 en contenedor, EF Core con migraciones y data seeding. Fallback a InMemory si no hay connection string. |
 | **Mensajería asíncrona** | MassTransit sobre RabbitMQ (local) o Azure Service Bus (Azure) con el mismo código. |
+| **Outbox Pattern + Idempotency** | Eventos publicados transaccionalmente vía `MassTransit.EntityFrameworkCore` Outbox sobre Postgres; deduplicación de reintentos con header `X-Idempotency-Key`. |
 | **Serverless** | Azure Functions v4 isolated con HTTP triggers, timer y Service Bus triggers. |
 | **Observabilidad** | OTel SDK + Collector → Prometheus + Loki + Tempo → Grafana. Correlación log-traza automática. |
 | **Contenedores** | Multi-stage Dockerfiles, Docker Compose con perfiles (app / observabilidad / infra). |
@@ -41,6 +42,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | [docs/adr/ADR-006](docs/adr/ADR-006-opentelemetry-observability.md) | OpenTelemetry como estándar de observabilidad |
 | [docs/adr/ADR-007](docs/adr/ADR-007-kustomize-over-helm.md) | Kustomize en lugar de Helm |
 | [docs/adr/ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) | Refresh tokens stateful + revocación en tiempo real con SignalR |
+| [docs/adr/ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md) | Outbox Pattern de MassTransit + Idempotency Key como middleware |
 
 ---
 
@@ -1046,6 +1048,9 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 | API | POST | `/api/auth/refresh` | No |
 | API | POST | `/api/auth/logout` | JWT |
 | API | GET | `/api/users` | JWT |
+| API | POST | `/api/users` | JWT · Admin |
+| API | DELETE | `/api/users/{id}` | JWT · Admin |
+| API | PATCH | `/api/users/{id}/role` | JWT · Admin |
 | API | GET | `/api/sessions/my` | JWT |
 | API | GET | `/api/sessions` | JWT · Admin |
 | API | PATCH | `/api/sessions/{id}/revoke` | JWT |
@@ -1057,6 +1062,9 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 | BFF | POST | `/bff/auth/refresh` | No |
 | BFF | POST | `/bff/auth/logout` | JWT |
 | BFF | GET | `/bff/users` | JWT |
+| BFF | POST | `/bff/users` | JWT · Admin |
+| BFF | DELETE | `/bff/users/{id}` | JWT · Admin |
+| BFF | PATCH | `/bff/users/{id}/role` | JWT · Admin |
 | BFF | GET | `/bff/sessions/my` | JWT |
 | BFF | GET | `/bff/sessions` | JWT · Admin |
 | BFF | PATCH | `/bff/sessions/{id}/revoke` | JWT |
@@ -1095,6 +1103,7 @@ Las contraseñas se guardan hasheadas con BCrypt.
 | **Vite proxy** | El frontend usa `/bff/...` relativo. Vite proxea en dev, nginx en Docker. Nunca hay URLs hardcodeadas |
 | **Kustomize (no Helm)** | Para un proyecto demo, Kustomize es más legible y directo. Helm tiene más sentido cuando el chart se reutiliza en múltiples deployments |
 | **Refresh tokens stateful** | Permiten revocar sesiones individuales y mantener audit trail. El access token dura 15 min; el refresh token 30 días con rotación en cada uso. [ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) |
+| **Outbox Pattern + Idempotency** | Los comandos mutantes publican eventos vía `MassTransit.EntityFrameworkCore` Outbox en la misma transacción que el agregado — cero pérdida si el bus cae. El header `X-Idempotency-Key` se gestiona en un middleware único que cachea la respuesta original 24h para deduplicar reintentos sin tocar los handlers. [ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md) |
 | **SignalR directo al API (no vía BFF)** | El BFF es un proxy REST. Una conexión WebSocket persistente no encaja en ese patrón. El access token JWT es suficiente para autenticar el hub. |
 | **OpenTelemetry SDK nativo** | OTel es el estándar de la industria. Exportar a OTLP permite cambiar el backend (Jaeger, Zipkin, DataDog...) sin tocar el código |
 | **Serilog con sink OTel** | Serilog es más ergonómico que `ILogger` para logging estructurado y es compatible con OTel para la correlación de trazas |

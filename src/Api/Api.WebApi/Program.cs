@@ -3,6 +3,7 @@ using Api.Application.Common.Interfaces;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
+using Api.WebApi.Middleware;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -136,6 +137,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("Dev");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<IdempotencyMiddleware>();
 app.MapControllers();
 app.MapHub<SessionHub>("/hubs/sessions");
 

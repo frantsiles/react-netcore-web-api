@@ -53,6 +53,15 @@ public class ApiClient(IHttpClientFactory httpClientFactory) : IApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task<TResponse?> PatchAsync<TRequest, TResponse>(
+        string path, TRequest body, string bearerToken, CancellationToken ct = default)
+    {
+        var client = CreateAuthorizedClient(bearerToken);
+        var response = await client.PatchAsync(path, Serialize(body), ct);
+        response.EnsureSuccessStatusCode();
+        return await Deserialize<TResponse>(response, ct);
+    }
+
     public async Task DeleteAsync(string path, string bearerToken, CancellationToken ct = default)
     {
         var client = CreateAuthorizedClient(bearerToken);

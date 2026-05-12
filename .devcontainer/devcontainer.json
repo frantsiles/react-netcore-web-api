@@ -1,6 +1,8 @@
 {
   "name": "React + .NET BFF Demo",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
 
   "features": {
     "ghcr.io/devcontainers/features/node:1": {

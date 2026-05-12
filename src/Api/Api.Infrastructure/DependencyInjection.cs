@@ -1,8 +1,11 @@
+using Api.Application.Assistant;
 using Api.Application.Common.Interfaces;
 using Api.Domain.Permissions.Repositories;
 using Api.Domain.Roles.Repositories;
 using Api.Domain.Sessions.Repositories;
 using Api.Domain.Users.Repositories;
+using Api.Infrastructure.Assistant;
+using Api.Infrastructure.Assistant.Providers;
 using Api.Infrastructure.Caching;
 using Api.Infrastructure.Messaging;
 using Api.Infrastructure.Persistence;
@@ -41,9 +44,24 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddScoped<IIdempotencyCache, InMemoryIdempotencyCache>();
 
+        AddAssistant(services, configuration);
         AddMessaging(services, configuration);
 
         return services;
+    }
+
+    private static void AddAssistant(IServiceCollection services, IConfiguration configuration)
+    {
+        string provider = configuration["Assistant:Provider"] ?? "Ollama";
+
+        if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IKernelFactory, OpenAIKernelFactory>();
+        else if (provider.Equals("AzureOpenAI", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IKernelFactory, AzureOpenAIKernelFactory>();
+        else
+            services.AddSingleton<IKernelFactory, OllamaKernelFactory>();
+
+        services.AddScoped<IAssistantService, AssistantService>();
     }
 
     private static void AddMessaging(IServiceCollection services, IConfiguration configuration)

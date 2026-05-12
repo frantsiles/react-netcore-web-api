@@ -62,7 +62,11 @@
       "Bash(bash -n /home/frantsiles/react-netcore-web-api/start.sh)",
       "Bash(bash -n /home/frantsiles/react-netcore-web-api/stop.sh)",
       "Bash(grep -nE \"^#{1,3} \" /home/frantsiles/react-netcore-web-api/README.md)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(dotnet --list-sdks)",
+      "Read(//usr/local/share/dotnet/**)",
+      "Read(//home/vscode/.dotnet/**)",
+      "Read(//opt/**)"
     ]
   }
 }

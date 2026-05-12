@@ -7,6 +7,7 @@ import { UsersPage } from './pages/UsersPage';
 import { SessionsPage } from './pages/SessionsPage';
 import { AdminSessionsPage } from './pages/AdminSessionsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
+import { AssistantPage } from './pages/AssistantPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermission="sessions:admin">
                   <AdminSessionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/assistant"
+              element={
+                <ProtectedRoute>
+                  <AssistantPage />
                 </ProtectedRoute>
               }
             />

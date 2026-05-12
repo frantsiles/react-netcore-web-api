@@ -28,6 +28,14 @@ services:
       MessageBus__RabbitMQ__VirtualHost: /
       MessageBus__RabbitMQ__Username: ${RABBITMQ_USER:-admin}
       MessageBus__RabbitMQ__Password: ${RABBITMQ_PASS:-admin123}
+      Assistant__Provider: ${ASSISTANT_PROVIDER:-Ollama}
+      Assistant__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      Assistant__OpenAI__Model: ${OPENAI_MODEL:-gpt-4o-mini}
+      Assistant__AzureOpenAI__Endpoint: ${AZURE_OPENAI_ENDPOINT:-}
+      Assistant__AzureOpenAI__DeploymentName: ${AZURE_OPENAI_DEPLOYMENT:-}
+      Assistant__AzureOpenAI__ApiKey: ${AZURE_OPENAI_API_KEY:-}
+      Assistant__Ollama__Endpoint: ${OLLAMA_ENDPOINT:-http://host.docker.internal:11434}
+      Assistant__Ollama__Model: ${OLLAMA_MODEL:-llama3.2}
     depends_on:
       postgres:
         condition: service_healthy

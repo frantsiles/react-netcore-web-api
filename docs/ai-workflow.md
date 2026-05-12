@@ -228,3 +228,52 @@ Esta fase añadió los tres comandos mutantes sobre `User` (crear, desactivar, c
 ### Velocidad real
 
 Implementación completa (Shared.Messages + Application + Infrastructure + Migración + Middleware + Controllers + BFF + Tests + Docs) en aproximadamente 90 minutos AI-augmented. La parte más rápida fue el boilerplate de los tres handlers (validator + handler + DI); lo más lento fue depurar el entorno de tests con MassTransit y EF en memoria. Estimación manual: 1 día y medio.
+
+---
+
+## Fase 9 — Agente IA con Semantic Kernel + SSE
+
+Esta fase añadió un endpoint conversacional `/api/assistant` que responde preguntas en
+lenguaje natural sobre usuarios y sesiones, ejecutando tool calls reales contra los handlers
+MediatR existentes y respondiendo via Server-Sent Events con streaming token a token.
+
+### Qué generó Claude Code
+
+**Plugins sobre ISender:** `UserPlugin` y `SessionPlugin` son POCOs decorados con
+`[KernelFunction]` que inyectan `ISender` y reutilizan directamente los handlers existentes
+(`GetUsersQuery`, `CreateUserCommand`, `GetAllActiveSessionsQuery`, `RevokeSessionCommand`).
+El modelo respetó la arquitectura en capas sin intentar añadir dependencias de SK a Domain.
+
+**IKernelFactory con tres providers:** La abstracción permite cambiar de Ollama (local, sin
+coste) a OpenAI o Azure OpenAI con una línea de configuración. El selector en DI lee
+`Assistant:Provider` y registra la implementación correcta.
+
+**SSE en el controller:** El modelo eligió `Response.Body.FlushAsync` tras cada chunk para
+evitar buffering en Kestrel. La decisión de hacer stream pass-through en el BFF (en lugar
+de deserializar/re-serializar) fue correcta desde el primer intento.
+
+**Frontend de chat:** `AssistantPage.tsx` acumula chunks en estado React por ID de mensaje,
+evitando re-renders innecesarios. El servicio `askAssistant` usa `ReadableStream` nativo del
+browser — no requiere librerías adicionales.
+
+### Dónde el juicio humano fue necesario
+
+**1. Pragma warnings para SKEXP0001/SKEXP0070:** Los conectores experimentales de SK emiten
+warnings de compilación. Se suprimen con `#pragma warning disable` en los archivos afectados
+— el modelo los añadió automáticamente pero fue necesario revisar el scope (por archivo, no
+global) para no enmascarar otros warnings.
+
+**2. `RequesterIsAdmin: true` en RevokeSessionCommand:** El plugin de sesiones llama con
+admin=true porque no tiene acceso al contexto HTTP. La autorización real la gestiona el
+middleware JWT del endpoint — esto se aceptó como tradeoff documentado.
+
+**3. Mocking de IChatCompletionService en tests:** El test de `AssistantService` requiere
+construir un `Kernel` real con el servicio mockeado registrado via `builder.Services.AddSingleton`.
+El modelo conocía este patrón de SK correctamente.
+
+### Velocidad real
+
+Implementación completa (Application + Infrastructure + WebApi + BFF + Frontend + Tests + ADR)
+en aproximadamente 60 minutos AI-augmented. La parte más rápida fue el scaffolding de los
+plugins y el controller SSE. Estimación manual: medio día.
+

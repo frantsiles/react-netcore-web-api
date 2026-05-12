@@ -24,6 +24,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | **IaC Azure** | Bicep: AKS + ACR + Service Bus + Key Vault. Script de deploy end-to-end. |
 | **Testing** | Unit (xUnit + Moq + FluentAssertions), integración (WebApplicationFactory), E2E (Playwright). |
 | **SignalR en tiempo real** | SessionHub con grupos por usuario y admin. Compatible con Azure SignalR Service (drop-in). |
+| **AI Agent + SSE** | Agente conversacional con Semantic Kernel 1.76.0, plugins sobre ISender y streaming via Server-Sent Events. Soporta Ollama, OpenAI y Azure OpenAI. |
 | **Ingeniería AI-augmented** | Claude Code + GitHub Copilot integrados en todo el ciclo. [Ver cómo →](docs/ai-workflow.md) |
 | **CI/CD** | GitHub Actions: tests .NET, build frontend, Docker builds en paralelo, validación de manifiestos K8s. |
 
@@ -42,6 +43,7 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 | [docs/adr/ADR-006](docs/adr/ADR-006-opentelemetry-observability.md) | OpenTelemetry como estándar de observabilidad |
 | [docs/adr/ADR-007](docs/adr/ADR-007-kustomize-over-helm.md) | Kustomize en lugar de Helm |
 | [docs/adr/ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) | Refresh tokens stateful + revocación en tiempo real con SignalR |
+| [docs/adr/ADR-010](docs/adr/ADR-010-semantic-kernel-agent-sse.md) | Agente IA con Semantic Kernel + SSE: plugins sobre ISender, IKernelFactory multi-provider, BFF pass-through |
 | [docs/adr/ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md) | Outbox Pattern de MassTransit + Idempotency Key como middleware |
 
 ---
@@ -182,6 +184,8 @@ OTel Collector
 | IaC Azure | Bicep | - |
 | Tests .NET | xUnit + Moq + FluentAssertions | - |
 | Tests E2E | Playwright | 1.59 |
+| AI Agent | Semantic Kernel | 1.76.0 |
+| LLM local | Ollama (default, sin coste) | - |
 
 ---
 
@@ -1073,6 +1077,8 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 | BFF | GET | `/bff/health` | No |
 | Gateway | GET | `/health` | No |
 | Functions | GET | `/api/functions/users` | No (demo) |
+| API | POST | `/api/assistant` | JWT · SSE |
+| BFF | POST | `/bff/assistant` | JWT · SSE pass-through |
 
 ---
 
@@ -1105,6 +1111,7 @@ Las contraseñas se guardan hasheadas con BCrypt.
 | **Refresh tokens stateful** | Permiten revocar sesiones individuales y mantener audit trail. El access token dura 15 min; el refresh token 30 días con rotación en cada uso. [ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) |
 | **Outbox Pattern + Idempotency** | Los comandos mutantes publican eventos vía `MassTransit.EntityFrameworkCore` Outbox en la misma transacción que el agregado — cero pérdida si el bus cae. El header `X-Idempotency-Key` se gestiona en un middleware único que cachea la respuesta original 24h para deduplicar reintentos sin tocar los handlers. [ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md) |
 | **SignalR directo al API (no vía BFF)** | El BFF es un proxy REST. Una conexión WebSocket persistente no encaja en ese patrón. El access token JWT es suficiente para autenticar el hub. |
+| **SK + SSE + IKernelFactory** | Semantic Kernel orquesta los tool calls; SSE (Server-Sent Events) envía tokens al cliente en streaming sin WebSocket. `IKernelFactory` desacopla el provider LLM (Ollama/OpenAI/Azure) de la lógica del agente. El BFF hace pass-through del stream en lugar de deserializar, preservando la naturaleza de tiempo real del protocolo. [ADR-010](docs/adr/ADR-010-semantic-kernel-agent-sse.md) |
 | **OpenTelemetry SDK nativo** | OTel es el estándar de la industria. Exportar a OTLP permite cambiar el backend (Jaeger, Zipkin, DataDog...) sin tocar el código |
 | **Serilog con sink OTel** | Serilog es más ergonómico que `ILogger` para logging estructurado y es compatible con OTel para la correlación de trazas |
 

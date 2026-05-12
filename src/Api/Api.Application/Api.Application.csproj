@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Api.Domain\Api.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\Shared.Messages\Shared.Messages.csproj" />
   </ItemGroup>
 
   <ItemGroup>

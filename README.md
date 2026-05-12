@@ -1,6 +1,6 @@
 # react-netcore-web-api — Demo Cloud-Native
 
-Repositorio de demostración que muestra cómo construir y operar una aplicación distribuida con **React**, **.NET 9**, **Docker**, **Kubernetes** y **Azure**. Pensado tanto para aprender como para servir de referencia arquitectónica.
+Repositorio de demostración que muestra cómo construir y operar una aplicación distribuida con **React**, **.NET 10**, **Docker**, **Kubernetes** y **Azure**. Pensado tanto para aprender como para servir de referencia arquitectónica.
 
 > **¿Por qué existe este repo?**  
 > Demuestra capacidades de desarrollo full-stack, diseño de microservicios, observabilidad, infraestructura como código y uso de IA (GitHub Copilot + Claude Code) en todo el ciclo de vida del software.
@@ -86,14 +86,14 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
                               │ /bff/*
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│          YARP API Gateway  ·  .NET 9                                │
+│          YARP API Gateway  ·  .NET 10                               │
 │          localhost:5000  (Docker/K8s: :8080)                        │
 │          Routing · Rate limiting · Health check activo de upstream  │
 └──────────────────┬────────────────────────────┬───────────────────────┘
                    │ /bff/*                   │ /api/*
                    ▼                          ▼
 ┌──────────────────────────┐  ┌────────────────────────────────────────┐
-│  BFF  ·  .NET 9          │  │  Backend API  ·  .NET 9              │
+│  BFF  ·  .NET 10         │  │  Backend API  ·  .NET 10             │
 │  localhost:5001          │  │  localhost:5002                       │
 │  Valida JWT              │  │  DDD + MediatR + CQRS                │
 │  Proxea al API           │  │  FluentValidation                    │
@@ -161,11 +161,11 @@ OTel Collector
 | Estado servidor | TanStack Query | 5 |
 | HTTP client | Axios | 1.15 |
 | WebSockets | @microsoft/signalr | 10 |
-| Backend runtime | .NET / ASP.NET Core | 9.0 |
+| Backend runtime | .NET / ASP.NET Core | 10.0 |
 | Patrón | DDD + MediatR + CQRS | - |
 | Validación | FluentValidation | 12 |
 | Base de datos | PostgreSQL (contenedor) | 17-alpine |
-| ORM | EF Core + Npgsql provider | 9.0 / 9.0 |
+| ORM | EF Core + Npgsql provider | 10.0 / 10.0 |
 | Autenticación | JWT Bearer | - |
 | API Gateway | YARP ReverseProxy | 2.2 |
 | Message bus | MassTransit + RabbitMQ / Azure Service Bus | 8.3 |
@@ -197,7 +197,7 @@ OTel Collector
            │          Funciona en el navegador, sin instalar nada.
            │
            └── NO ──▶ Modo A (local sin Docker) — sección 4
-                      `dotnet run` por servicio. Requiere .NET 9 SDK + Node 20.
+                      `dotnet run` por servicio. Requiere .NET 10 SDK + Node 20.
 ```
 
 **Camino corto si ya tienes Docker:**
@@ -364,8 +364,8 @@ docker compose down -v                  # parar y borrar datos
 
 Cada servicio .NET tiene un **multi-stage Dockerfile** en `docker/<servicio>/Dockerfile`:
 
-1. **Stage builder** — `mcr.microsoft.com/dotnet/sdk:9.0`, copia los `.csproj` primero (caching de capas) y publica el binario.
-2. **Stage final** — `mcr.microsoft.com/dotnet/aspnet:9.0` (sin SDK), instala `curl` para los healthchecks y arranca el binario como `ENTRYPOINT`.
+1. **Stage builder** — `mcr.microsoft.com/dotnet/sdk:10.0`, copia los `.csproj` primero (caching de capas) y publica el binario.
+2. **Stage final** — `mcr.microsoft.com/dotnet/aspnet:10.0` (sin SDK), instala `curl` para los healthchecks y arranca el binario como `ENTRYPOINT`.
 
 El frontend usa `node:20-alpine` para compilar el SPA y `nginx:alpine` para servirlo. El nginx incluye un proxy `/bff/*` → BFF para que el SPA no haga CORS.
 
@@ -409,7 +409,7 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 
 ### YARP API Gateway (`src/Gateway/Gateway.Api`)
 
-**Qué es.** Reverse proxy en .NET 9 con [YARP](https://microsoft.github.io/reverse-proxy/). En Docker/K8s es el único servicio expuesto al exterior.
+**Qué es.** Reverse proxy en .NET 10 con [YARP](https://microsoft.github.io/reverse-proxy/). En Docker/K8s es el único servicio expuesto al exterior.
 
 **Qué resuelve.**
 - **Punto de entrada único.** El cliente solo conoce una URL aunque por detrás haya N microservicios.
@@ -510,7 +510,7 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 
 ### Worker Service (`src/Worker/Worker.Service`)
 
-**Qué es.** Proceso `BackgroundService` de .NET 9 que consume mensajes con [MassTransit](https://masstransit.io/). No tiene puerto HTTP — vive de la cola.
+**Qué es.** Proceso `BackgroundService` de .NET 10 que consume mensajes con [MassTransit](https://masstransit.io/). No tiene puerto HTTP — vive de la cola.
 
 **Qué resuelve.** Es el extremo "consumidor" del patrón pub/sub. Procesa eventos publicados por el API sin que el flujo HTTP sea bloqueante. Permite **escalar el consumo** (más réplicas = más throughput) independiente del API.
 
@@ -954,7 +954,7 @@ react-netcore-web-api/
 │   └── vite.config.ts              # proxy /bff → :5001, plugin Tailwind
 │
 ├── .devcontainer/
-│   └── devcontainer.json           # Codespaces: .NET 9 + Node 20 + Playwright
+│   └── devcontainer.json           # Codespaces: .NET 10 + Node 20 + Playwright
 ├── .github/
 │   └── commit-message-instructions.md  # Conventional Commits en español
 ├── docker-compose.yml              # Stack completo (app + Postgres + RabbitMQ + observabilidad)

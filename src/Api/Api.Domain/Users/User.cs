@@ -73,6 +73,14 @@ public class User : Entity
         SetUpdatedAt();
     }
 
+    public void ChangeRole(Role newRole)
+    {
+        if (newRole is null) throw new DomainException("Role cannot be null.");
+        _roles.Clear();
+        _roles.Add(newRole);
+        SetUpdatedAt();
+    }
+
     public bool HasPermission(string permissionName)
         => _roles.Any(r => r.HasPermission(permissionName));
 

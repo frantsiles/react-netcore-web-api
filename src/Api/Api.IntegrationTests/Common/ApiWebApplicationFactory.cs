@@ -1,5 +1,6 @@
 using Api.Infrastructure.Persistence;
 using Api.Infrastructure.Persistence.Seed;
+using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -10,33 +11,44 @@ namespace Api.IntegrationTests.Common;
 /// <summary>
 /// Creates an in-process test server using the real application startup,
 /// replacing the EF Core database with a fresh InMemory instance per test class.
-/// The GUID is fixed at class level so all scopes within a test run share the same database.
+/// MassTransit is rewired to the in-memory test harness so events are observable.
 /// </summary>
 public class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
-    // Fixed name so all service scopes in the same test run share one InMemory DB
     private readonly string _dbName = $"TestDb-{Guid.NewGuid()}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // "Testing" environment skips appsettings.Development.json (which has a real DB connection
-        // string), so AddInfrastructure falls back to InMemory — same provider as the override below.
         builder.UseEnvironment("Testing");
 
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(
+            var dbOptionsDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-            if (descriptor is not null) services.Remove(descriptor);
+            if (dbOptionsDescriptor is not null) services.Remove(dbOptionsDescriptor);
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
 
-            // Seed once — all scopes read from the same named InMemory DB
+            RemoveMassTransitServices(services);
+            services.AddMassTransitTestHarness();
+
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             DataSeeder.SeedAsync(db).GetAwaiter().GetResult();
         });
+    }
+
+    private static void RemoveMassTransitServices(IServiceCollection services)
+    {
+        var toRemove = services
+            .Where(d => d.ServiceType.FullName is not null &&
+                        (d.ServiceType.FullName.StartsWith("MassTransit", StringComparison.Ordinal) ||
+                         d.ImplementationType?.FullName?.StartsWith("MassTransit", StringComparison.Ordinal) == true))
+            .ToList();
+
+        foreach (var descriptor in toRemove)
+            services.Remove(descriptor);
     }
 }

@@ -23,6 +23,11 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: demo-api
       OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=docker"
+      MessageBus__Transport: RabbitMQ
+      MessageBus__RabbitMQ__Host: rabbitmq
+      MessageBus__RabbitMQ__VirtualHost: /
+      MessageBus__RabbitMQ__Username: ${RABBITMQ_USER:-admin}
+      MessageBus__RabbitMQ__Password: ${RABBITMQ_PASS:-admin123}
     depends_on:
       postgres:
         condition: service_healthy

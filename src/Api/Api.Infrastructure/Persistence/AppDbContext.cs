@@ -3,6 +3,7 @@ using Api.Domain.Roles;
 using Api.Domain.Sessions;
 using Api.Domain.Users;
 using Api.Domain.Users.ValueObjects;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Infrastructure.Persistence;
@@ -22,6 +23,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.AddInboxStateEntity();
+        builder.AddOutboxStateEntity();
+        builder.AddOutboxMessageEntity();
 
         // User configuration
         builder.Entity<User>(entity =>

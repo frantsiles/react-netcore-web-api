@@ -1,5 +1,5 @@
 using MassTransit;
-using Worker.Service.Messages;
+using Shared.Messages;
 
 namespace Worker.Service.Consumers;
 

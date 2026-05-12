@@ -24,4 +24,7 @@
   <Folder Name="/src/Functions/">
     <Project Path="src/Functions/Functions.App/Functions.App.csproj" />
   </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/Shared.Messages/Shared.Messages.csproj" />
+  </Folder>
 </Solution>

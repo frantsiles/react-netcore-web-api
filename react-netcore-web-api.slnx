@@ -57,4 +57,10 @@
     <Project Path="src/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj" />
     <Project Path="src/Inventory/Inventory.UnitTests/Inventory.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Purchasing/">
+    <Project Path="src/Purchasing/Purchasing.Domain/Purchasing.Domain.csproj" />
+    <Project Path="src/Purchasing/Purchasing.Application/Purchasing.Application.csproj" />
+    <Project Path="src/Purchasing/Purchasing.Infrastructure/Purchasing.Infrastructure.csproj" />
+    <Project Path="src/Purchasing/Purchasing.UnitTests/Purchasing.UnitTests.csproj" />
+  </Folder>
 </Solution>

@@ -42,6 +42,8 @@
     <ProjectReference Include="..\..\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\ControlPlane\ControlPlane.Application\ControlPlane.Application.csproj" />
     <ProjectReference Include="..\..\ControlPlane\ControlPlane.Infrastructure\ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Purchasing\Purchasing.Application\Purchasing.Application.csproj" />
+    <ProjectReference Include="..\..\Purchasing\Purchasing.Infrastructure\Purchasing.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

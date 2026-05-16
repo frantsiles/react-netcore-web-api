@@ -10,6 +10,8 @@ using Inventory.Application;
 using Inventory.Infrastructure;
 using ControlPlane.Application;
 using ControlPlane.Infrastructure;
+using Purchasing.Application;
+using Purchasing.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -73,6 +75,8 @@ builder.Services.AddInventoryApplication();
 builder.Services.AddInventoryInfrastructure(builder.Configuration);
 builder.Services.AddControlPlaneApplication();
 builder.Services.AddControlPlaneInfrastructure(builder.Configuration);
+builder.Services.AddPurchasingApplication();
+builder.Services.AddPurchasingInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

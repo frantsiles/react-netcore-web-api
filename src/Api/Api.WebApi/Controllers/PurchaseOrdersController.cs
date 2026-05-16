@@ -40,7 +40,7 @@ public class PurchaseOrdersController(ISender sender) : ControllerBase
         => Ok(await sender.Send(new SearchPurchaseOrdersQuery(supplierId, status, poNumber), ct));
 
     [HttpPost("{id:guid}/lines")]
-    public async Task<IActionResult> AddLine(Guid id, [FromBody] AddLineRequest req, CancellationToken ct)
+    public async Task<IActionResult> AddLine(Guid id, [FromBody] AddPoLineRequest req, CancellationToken ct)
         => Ok(await sender.Send(new AddPurchaseOrderLineCommand(
             id, req.CatalogItemId, req.Sku, req.ItemName, req.QuantityOrdered, req.UnitCostAmount, req.Notes), ct));
 
@@ -72,7 +72,7 @@ public class PurchaseOrdersController(ISender sender) : ControllerBase
         => Ok(await sender.Send(new CancelPurchaseOrderCommand(id, req.Reason), ct));
 }
 
-public record AddLineRequest(
+public record AddPoLineRequest(
     Guid CatalogItemId, string Sku, string ItemName,
     decimal QuantityOrdered, decimal UnitCostAmount, string? Notes);
 public record UpdateLineRequest(decimal QuantityOrdered, decimal UnitCostAmount, string? Notes);

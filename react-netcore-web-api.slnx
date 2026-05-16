@@ -63,4 +63,10 @@
     <Project Path="src/Purchasing/Purchasing.Infrastructure/Purchasing.Infrastructure.csproj" />
     <Project Path="src/Purchasing/Purchasing.UnitTests/Purchasing.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Accounting/">
+    <Project Path="src/Accounting/Accounting.Domain/Accounting.Domain.csproj" />
+    <Project Path="src/Accounting/Accounting.Application/Accounting.Application.csproj" />
+    <Project Path="src/Accounting/Accounting.Infrastructure/Accounting.Infrastructure.csproj" />
+    <Project Path="src/Accounting/Accounting.UnitTests/Accounting.UnitTests.csproj" />
+  </Folder>
 </Solution>

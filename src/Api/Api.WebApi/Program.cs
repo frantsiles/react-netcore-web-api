@@ -12,6 +12,8 @@ using ControlPlane.Application;
 using ControlPlane.Infrastructure;
 using Purchasing.Application;
 using Purchasing.Infrastructure;
+using Accounting.Application;
+using Accounting.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -77,6 +79,8 @@ builder.Services.AddControlPlaneApplication();
 builder.Services.AddControlPlaneInfrastructure(builder.Configuration);
 builder.Services.AddPurchasingApplication();
 builder.Services.AddPurchasingInfrastructure(builder.Configuration);
+builder.Services.AddAccountingApplication();
+builder.Services.AddAccountingInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

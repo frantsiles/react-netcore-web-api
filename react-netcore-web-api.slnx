@@ -45,6 +45,12 @@
     <Project Path="src/Sales/Sales.Infrastructure/Sales.Infrastructure.csproj" />
     <Project Path="src/Sales/Sales.UnitTests/Sales.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/ControlPlane/">
+    <Project Path="src/ControlPlane/ControlPlane.Domain/ControlPlane.Domain.csproj" />
+    <Project Path="src/ControlPlane/ControlPlane.Application/ControlPlane.Application.csproj" />
+    <Project Path="src/ControlPlane/ControlPlane.Infrastructure/ControlPlane.Infrastructure.csproj" />
+    <Project Path="src/ControlPlane/ControlPlane.UnitTests/ControlPlane.UnitTests.csproj" />
+  </Folder>
   <Folder Name="/src/Inventory/">
     <Project Path="src/Inventory/Inventory.Domain/Inventory.Domain.csproj" />
     <Project Path="src/Inventory/Inventory.Application/Inventory.Application.csproj" />

@@ -8,6 +8,8 @@ using Sales.Application;
 using Sales.Infrastructure;
 using Inventory.Application;
 using Inventory.Infrastructure;
+using ControlPlane.Application;
+using ControlPlane.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -69,6 +71,8 @@ builder.Services.AddSalesApplication();
 builder.Services.AddSalesInfrastructure(builder.Configuration);
 builder.Services.AddInventoryApplication();
 builder.Services.AddInventoryInfrastructure(builder.Configuration);
+builder.Services.AddControlPlaneApplication();
+builder.Services.AddControlPlaneInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];
@@ -143,6 +147,8 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     await DatabaseInitializer.InitializeAsync(db, config, logger);
 }
+
+await ControlPlane.Infrastructure.DependencyInjection.SeedDefaultTenantAsync(app.Services);
 
 if (app.Environment.IsDevelopment())
 {

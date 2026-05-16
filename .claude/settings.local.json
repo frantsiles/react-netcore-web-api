@@ -87,7 +87,9 @@
       "Read(//opt/**)",
       "Bash(git pull *)",
       "Bash(git stash *)",
-      "WebFetch(domain:www.nuget.org)"
+      "WebFetch(domain:www.nuget.org)",
+      "Bash(xargs basename -a)",
+      "Bash(xargs ls -la)"
     ],
     "additionalDirectories": [
       "/home/frantsiles/react-netcore-web-api/src/Shared"

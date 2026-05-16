@@ -10,7 +10,7 @@
 | Etapa | Contenido | Estado |
 |---|---|---|
 | **E0** | Tenant-aware design | ✅ Completa |
-| **E1** | Parties + Catalog | 🔵 Diseñada — implementación pendiente |
+| **E1** | Parties + Catalog | 🟡 Parties completo — Catalog pendiente |
 | **E2** | Sales pipeline | ⬜ Pendiente |
 | **E3** | Inventory (event sourcing) | ⬜ Pendiente |
 | **E3.5** | Switch a control plane real + BD-por-tenant | ⬜ Pendiente |
@@ -61,10 +61,37 @@
 
 ---
 
-## E1 — Parties + Catalog 🔵
+## E1 — Parties + Catalog 🟡
 
 **Diseño completo:** [ADR-012](adr/ADR-012-e1-parties-catalog-design.md)  
-**Implementación:** pendiente
+**Parties completado:** 2026-05-16  
+**Tests Parties:** 39/39 ✅
+
+### Qué se construyó — Parties
+
+**`src/Parties/` — módulo independiente (monolito modular)**
+
+**Parties.Domain**
+- `Party` — aggregate root. Implementa `ITenantEntity` (TenantId con global query filter). Gestiona roles, addresses, contact points. Invariantes: mínimo 1 role activo, mínimo 1 address.
+- `PartyRole` — entity owned por Party. Ciclo de vida: Active / Inactive / Suspended. Soporta CreditLimit (Money), PaymentTermsDays, EmployeeNumber.
+- Value objects: `TaxId` (validación por regex según país: US/MX/ES/GT + fallback permisivo), `Address` (AsPrimary/AsSecondary), `ContactPoint` (Email/Phone/Web con validación de formato).
+- Domain events: `PartyRegisteredEvent`, `PartyProfileUpdatedEvent`, `PartyRoleActivatedEvent`, `PartyRoleDeactivatedEvent`.
+- `IPartyRepository` — GetById, ExistsByTaxId, Search (paginado), Add, Update.
+
+**Parties.Application**
+- 9 Commands: RegisterParty, UpdatePartyProfile, AddAddress, RemoveAddress, AddContactPoint, RemoveContactPoint, ActivateRole, DeactivateRole, DeactivateParty.
+- 2 Queries: GetPartyById, SearchParties (filtros: legalName, roleType, isActive; paginación skip/take).
+- Todos con FluentValidation. Mapeo a `PartyDto` via extension method.
+- `AddPartiesApplication()` registra MediatR + validators.
+
+**Parties.Infrastructure**
+- `PartiesDbContext` — hereda `TenantAwareDbContext`. Owned entities: Roles, Addresses, ContactPoints (incluyendo TaxId y Money como owned types). Global query filter por TenantId automático.
+- `PartyRepository` — InMemory en desarrollo, Npgsql en producción (misma config que AppDbContext).
+- `AddPartiesInfrastructure()` registra DbContext + repository.
+
+**Api.WebApi**
+- `PartiesController` — 11 endpoints REST: CRUD completo + gestión de roles/addresses/contactPoints.
+- Integrado en `Program.cs` vía `AddPartiesApplication()` + `AddPartiesInfrastructure()`.
 
 ### Decisiones de diseño ya cerradas
 
@@ -74,17 +101,7 @@
 - **Monolito modular**: Parties y Catalog viven como módulos dentro del `Api.WebApi` existente. No hay servicios independientes. Extracción futura si la escala lo justifica.
 - **Navegación frontend**: `/parties` con filtro por rol — no rutas separadas por tipo.
 
-### Próximos pasos para implementar E1
-
-**Backend — Parties:**
-1. `Api.Domain` — Agregado `Party` + entidad `PartyRole` (hereda `AggregateRoot`, implementa `ITenantEntity`)
-2. `Api.Domain` — Value objects: `TaxId` (validación por país), `Address`, `ContactPoint`
-3. `Api.Domain` — Eventos: `PartyRegisteredEvent`, `PartyRoleActivatedEvent`, `PartyRoleDeactivatedEvent`, `PartyProfileUpdatedEvent`
-4. `Api.Domain` — Interface `IPartyRepository`
-5. `Api.Infrastructure` — `PartiesDbContext` heredando `TenantAwareDbContext`
-6. `Api.Infrastructure` — `PartyRepository`
-7. `Api.Application` — 10 Commands + 3 Queries con sus Handlers MediatR (ver ADR-012)
-8. `Api.WebApi` — `PartiesController`
+### Próximos pasos — Catalog
 
 **Backend — Catalog:**
 1. Agregados `CatalogItem` + `PriceList` / `PriceListEntry`

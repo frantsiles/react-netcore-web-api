@@ -28,6 +28,7 @@
     <Project Path="src/Parties/Parties.Application/Parties.Application.csproj" />
     <Project Path="src/Parties/Parties.Domain/Parties.Domain.csproj" />
     <Project Path="src/Parties/Parties.Infrastructure/Parties.Infrastructure.csproj" />
+    <Project Path="src/Parties/Parties.UnitTests/Parties.UnitTests.csproj" />
   </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/Shared.Messages/Shared.Messages.csproj" />

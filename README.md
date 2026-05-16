@@ -171,7 +171,7 @@ OTel Collector
 | Autenticación | JWT Bearer | - |
 | API Gateway | YARP ReverseProxy | 2.2 |
 | Message bus | MassTransit + RabbitMQ / Azure Service Bus | 8.3 |
-| Functions | Azure Functions v4 (isolated) | .NET 9 |
+| Functions | Azure Functions v4 (isolated) | .NET 8 |
 | Trazas / Métricas | OpenTelemetry SDK | 1.9 |
 | Logs estructurados | Serilog (JSON + OTLP sink) | 8 |
 | Colector OTel | OpenTelemetry Collector Contrib | 0.115 |
@@ -224,7 +224,7 @@ cd react-netcore-web-api
 
 | Herramienta | Versión mínima | Verificar |
 |------------|---------------|-----------|
-| .NET SDK | 9.x | `dotnet --version` |
+| .NET SDK | 10.x | `dotnet --version` |
 | Node.js | 20.x | `node --version` |
 | npm | 10.x | `npm --version` |
 
@@ -536,7 +536,7 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 
 ### Azure Functions (`src/Functions/Functions.App`)
 
-**Qué es.** Function App .NET 9 **isolated worker** con HTTP, Timer y Service Bus triggers. Pensada para ejecutarse en el plan de consumo de Azure (paga por ejecución).
+**Qué es.** Function App .NET 8 **isolated worker** con HTTP, Timer y Service Bus triggers. Pensada para ejecutarse en el plan de consumo de Azure (paga por ejecución).
 
 **Triggers implementados:**
 
@@ -948,8 +948,8 @@ react-netcore-web-api/
 ├── frontend/                       # React SPA
 │   ├── src/
 │   │   ├── contexts/               # AuthContext (JWT + sessionStorage)
-│   │   ├── services/               # api.ts (Axios + refresh interceptor), authService, userService, sessionService, signalRService
-│   │   ├── pages/                  # LoginPage, UsersPage, SessionsPage, AdminSessionsPage, UnauthorizedPage
+│   │   ├── services/               # api.ts (Axios + refresh interceptor), authService, userService, sessionService, signalRService, assistantService
+│   │   ├── pages/                  # LoginPage, UsersPage, SessionsPage, AdminSessionsPage, AssistantPage, UnauthorizedPage
 │   │   ├── components/             # UI components (Radix + Tailwind)
 │   │   └── types/                  # Tipos TypeScript
 │   ├── e2e/

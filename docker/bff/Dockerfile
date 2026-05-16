@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 WORKDIR /src
 
 COPY src/BFF/BFF.Domain/BFF.Domain.csproj               src/BFF/BFF.Domain/
@@ -11,7 +11,7 @@ COPY src/BFF/ src/BFF/
 RUN dotnet publish src/BFF/BFF.Api/BFF.Api.csproj \
     -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*

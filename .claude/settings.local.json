@@ -63,10 +63,31 @@
       "Bash(bash -n /home/frantsiles/react-netcore-web-api/stop.sh)",
       "Bash(grep -nE \"^#{1,3} \" /home/frantsiles/react-netcore-web-api/README.md)",
       "Bash(python3 -c ' *)",
+      "Bash(mkdir -p src/Shared/Shared.Messages)",
+      "Bash(git reset *)",
+      "Bash(export PATH=\"$PATH:/home/frantsiles/.dotnet/tools\")",
       "Bash(dotnet --list-sdks)",
+      "Bash(dotnet --list-runtimes)",
+      "Bash(dotnet --version)",
+      "Bash(export DOTNET_ROLL_FORWARD=Major)",
+      "Bash(DOTNET_ROLL_FORWARD=Major dotnet test src/Api/Api.UnitTests/Api.UnitTests.csproj)",
+      "Bash(DOTNET_ROLL_FORWARD=Major dotnet test src/Api/Api.IntegrationTests/Api.IntegrationTests.csproj)",
+      "Bash(DOTNET_ROLL_FORWARD=Major dotnet test)",
+      "Bash(curl -s \"https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.authentication.jwtbearer/index.json\")",
+      "Bash(curl -s https://api.nuget.org/v3-flatcontainer/__TRACKED_VAR__/index.json)",
+      "Bash(curl -s \"https://api.nuget.org/v3-flatcontainer/opentelemetry.exporter.opentelemetryprotocol/index.json\")",
+      "Bash(python3 -c \"import sys,json; v=json.load\\(sys.stdin\\)['versions']; stable=[x for x in v if '-' not in x]; print\\('\\\\n'.join\\(stable[-15:]\\)\\)\")",
+      "Bash(curl -s https://dotnetcli.azureedge.net/dotnet/release-metadata/10.0/releases.json)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Latest:', d['latest-release']\\); print\\('SDK:', d['releases'][0]['sdk']['version']\\)\")",
+      "Bash(sudo -l)",
+      "Bash(sudo sh -c 'dockerd > /tmp/dockerd-out.log 2>&1 &')",
+      "Bash(sudo /usr/local/share/docker-init.sh)",
       "Read(//usr/local/share/dotnet/**)",
       "Read(//home/vscode/.dotnet/**)",
       "Read(//opt/**)"
+    ],
+    "additionalDirectories": [
+      "/home/frantsiles/react-netcore-web-api/src/Shared"
     ]
   }
 }

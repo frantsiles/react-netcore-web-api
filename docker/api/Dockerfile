@@ -1,17 +1,19 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS builder
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS builder
 WORKDIR /src
 
+COPY src/Shared/Shared.Messages/Shared.Messages.csproj src/Shared/Shared.Messages/
 COPY src/Api/Api.Domain/Api.Domain.csproj           src/Api/Api.Domain/
 COPY src/Api/Api.Application/Api.Application.csproj src/Api/Api.Application/
 COPY src/Api/Api.Infrastructure/Api.Infrastructure.csproj src/Api/Api.Infrastructure/
 COPY src/Api/Api.WebApi/Api.WebApi.csproj           src/Api/Api.WebApi/
 RUN dotnet restore src/Api/Api.WebApi/Api.WebApi.csproj
 
+COPY src/Shared/ src/Shared/
 COPY src/Api/ src/Api/
 RUN dotnet publish src/Api/Api.WebApi/Api.WebApi.csproj \
     -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*

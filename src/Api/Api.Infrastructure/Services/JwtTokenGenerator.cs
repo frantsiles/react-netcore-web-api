@@ -37,7 +37,9 @@ public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerato
             new(JwtRegisteredClaimNames.Email, user.Email.Value),
             new(JwtRegisteredClaimNames.Name,  user.FullName),
             new(JwtRegisteredClaimNames.Jti,   Guid.NewGuid().ToString()),
-            new("sid", sessionId.ToString()),
+            new("sid",          sessionId.ToString()),
+            new("tenant_id",    Tenant.ClaimsTenantContext.DefaultTenantId.ToString()),
+            new("country_code", Tenant.ClaimsTenantContext.DefaultCountryCode),
         };
 
         claims.AddRange(permissions.Select(p => new Claim("permission", p)));

@@ -11,7 +11,9 @@ using Api.Infrastructure.Messaging;
 using Api.Infrastructure.Persistence;
 using Api.Infrastructure.Persistence.Repositories;
 using Api.Infrastructure.Services;
+using Api.Infrastructure.Tenant;
 using MassTransit;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +24,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+        services.AddScoped<ITenantContext, ClaimsTenantContext>();
+        services.AddScoped<ITenantSettings, DefaultTenantSettings>();
+
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
         services.AddDbContext<AppDbContext>(options =>

@@ -137,6 +137,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("Dev");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<TenantEnrichmentMiddleware>();
 app.UseMiddleware<IdempotencyMiddleware>();
 app.MapControllers();
 app.MapHub<SessionHub>("/hubs/sessions");

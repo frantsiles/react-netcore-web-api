@@ -6,6 +6,8 @@ using Parties.Application;
 using Parties.Infrastructure;
 using Sales.Application;
 using Sales.Infrastructure;
+using Inventory.Application;
+using Inventory.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -65,6 +67,8 @@ builder.Services.AddCatalogApplication();
 builder.Services.AddCatalogInfrastructure(builder.Configuration);
 builder.Services.AddSalesApplication();
 builder.Services.AddSalesInfrastructure(builder.Configuration);
+builder.Services.AddInventoryApplication();
+builder.Services.AddInventoryInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

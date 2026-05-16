@@ -45,4 +45,10 @@
     <Project Path="src/Sales/Sales.Infrastructure/Sales.Infrastructure.csproj" />
     <Project Path="src/Sales/Sales.UnitTests/Sales.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Inventory/">
+    <Project Path="src/Inventory/Inventory.Domain/Inventory.Domain.csproj" />
+    <Project Path="src/Inventory/Inventory.Application/Inventory.Application.csproj" />
+    <Project Path="src/Inventory/Inventory.Infrastructure/Inventory.Infrastructure.csproj" />
+    <Project Path="src/Inventory/Inventory.UnitTests/Inventory.UnitTests.csproj" />
+  </Folder>
 </Solution>

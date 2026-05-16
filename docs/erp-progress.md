@@ -10,7 +10,7 @@
 | Etapa | Contenido | Estado |
 |---|---|---|
 | **E0** | Tenant-aware design | ✅ Completa |
-| **E1** | Parties + Catalog | 🟡 Parties completo — Catalog pendiente |
+| **E1** | Parties + Catalog | ✅ Completa |
 | **E2** | Sales pipeline | ⬜ Pendiente |
 | **E3** | Inventory (event sourcing) | ⬜ Pendiente |
 | **E3.5** | Switch a control plane real + BD-por-tenant | ⬜ Pendiente |
@@ -64,8 +64,8 @@
 ## E1 — Parties + Catalog 🟡
 
 **Diseño completo:** [ADR-012](adr/ADR-012-e1-parties-catalog-design.md)  
-**Parties completado:** 2026-05-16  
-**Tests Parties:** 39/39 ✅
+**Completada:** 2026-05-16  
+**Tests:** 68/68 ✅ (39 Parties + 29 Catalog)
 
 ### Qué se construyó — Parties
 
@@ -101,23 +101,39 @@
 - **Monolito modular**: Parties y Catalog viven como módulos dentro del `Api.WebApi` existente. No hay servicios independientes. Extracción futura si la escala lo justifica.
 - **Navegación frontend**: `/parties` con filtro por rol — no rutas separadas por tipo.
 
-### Próximos pasos — Catalog
+### Qué se construyó — Catalog
 
-**Backend — Catalog:**
-1. Agregados `CatalogItem` + `PriceList` / `PriceListEntry`
-2. Value object `UnitOfMeasure`
-3. `ICatalogItemRepository` + `IPriceListRepository`
-4. `CatalogDbContext` (puede compartir contexto con Parties o ser separado)
-5. 10 Commands + 6 Queries con sus Handlers
-6. `CatalogController`
+**`src/Catalog/` — módulo independiente (monolito modular)**
 
-**Frontend:**
-- `/parties` — lista con filtros
-- `/parties/new` — wizard 2 pasos
-- `/parties/:id` — detail con tabs
+**Catalog.Domain**
+- `CatalogItem` — aggregate root con SKU inmutable. `TrackInventory`/`ReorderPoint` solo para Products.
+- `PriceList` — aggregate root con vigencia (ValidFrom/ValidTo). Invariante: exactamente una por tenant con `IsDefault=true` (gestionado en Application).
+- `PriceListEntry` — entity owned por PriceList. `UnitPrice` (Money) + `MinQuantity` para precios por volumen. Unicidad (CatalogItemId + MinQuantity) enforceada en el agregado.
+- `UnitOfMeasure` — value object con código UN/CEFACT normalizado a mayúsculas.
+- 3 domain events: `CatalogItemCreatedEvent`, `CatalogItemDeactivatedEvent`, `PriceListPublishedEvent`.
+
+**Catalog.Application**
+- 9 Commands: CreateCatalogItem, UpdateCatalogItem, DeactivateCatalogItem, CreatePriceList, UpdatePriceList, AddPriceEntry, UpdatePriceEntry, RemovePriceEntry, SetDefaultPriceList.
+- 6 Queries: GetCatalogItemById, GetCatalogItemBySKU, SearchCatalogItems, GetItemPrice (busca precio efectivo por ítem+fecha+cantidad en la lista default vigente), ListPriceLists, GetPriceListById.
+- `AddCatalogApplication()` registra MediatR + validators.
+
+**Catalog.Infrastructure**
+- `CatalogDbContext` — hereda `TenantAwareDbContext`. Owned entities: UnitOfMeasure, PriceListEntry.UnitPrice (Money), global query filter por TenantId.
+- `CatalogItemRepository` + `PriceListRepository`.
+- `AddCatalogInfrastructure()`.
+
+**Api.WebApi**
+- `CatalogItemsController` — 7 endpoints: CRUD + search + SKU lookup + price query.
+- `PriceListsController` — 7 endpoints: CRUD + entry management + set-default.
+
+### Próximos pasos — E2 Sales pipeline
+
+**Frontend E1 (pendiente):**
+- `/parties` lista con filtros por rol
+- `/parties/new` wizard 2 pasos
+- `/parties/:id` detail con tabs
 - `/catalog/items` y `/catalog/items/:id`
 - `/catalog/pricelists` y `/catalog/pricelists/:id`
-- Inicio del catálogo de componentes UI en `/frontend/src/components/ui/` con ruta `/dev/components`
 
 ---
 

@@ -21,6 +21,12 @@
   <Folder Name="/src/Worker/">
     <Project Path="src/Worker/Worker.Service/Worker.Service.csproj" />
   </Folder>
+  <Folder Name="/src/Catalog/">
+    <Project Path="src/Catalog/Catalog.Application/Catalog.Application.csproj" />
+    <Project Path="src/Catalog/Catalog.Domain/Catalog.Domain.csproj" />
+    <Project Path="src/Catalog/Catalog.Infrastructure/Catalog.Infrastructure.csproj" />
+    <Project Path="src/Catalog/Catalog.UnitTests/Catalog.UnitTests.csproj" />
+  </Folder>
   <Folder Name="/src/Functions/">
     <Project Path="src/Functions/Functions.App/Functions.App.csproj" />
   </Folder>

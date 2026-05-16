@@ -1,5 +1,7 @@
 using Api.Application;
 using Api.Application.Common.Interfaces;
+using Catalog.Application;
+using Catalog.Infrastructure;
 using Parties.Application;
 using Parties.Infrastructure;
 using Api.Infrastructure;
@@ -57,6 +59,8 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddPartiesApplication();
 builder.Services.AddPartiesInfrastructure(builder.Configuration);
+builder.Services.AddCatalogApplication();
+builder.Services.AddCatalogInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

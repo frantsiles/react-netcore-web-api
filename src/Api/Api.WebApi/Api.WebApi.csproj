@@ -34,6 +34,8 @@
     <ProjectReference Include="..\Api.Infrastructure\Api.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Parties\Parties.Application\Parties.Application.csproj" />
     <ProjectReference Include="..\..\Parties\Parties.Infrastructure\Parties.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Catalog\Catalog.Application\Catalog.Application.csproj" />
+    <ProjectReference Include="..\..\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

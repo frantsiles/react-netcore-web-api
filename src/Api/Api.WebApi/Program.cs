@@ -1,5 +1,7 @@
 using Api.Application;
 using Api.Application.Common.Interfaces;
+using Parties.Application;
+using Parties.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -53,6 +55,8 @@ builder.Services.AddOpenTelemetry()
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddPartiesApplication();
+builder.Services.AddPartiesInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

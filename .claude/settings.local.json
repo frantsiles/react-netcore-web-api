@@ -84,7 +84,9 @@
       "Bash(sudo /usr/local/share/docker-init.sh)",
       "Read(//usr/local/share/dotnet/**)",
       "Read(//home/vscode/.dotnet/**)",
-      "Read(//opt/**)"
+      "Read(//opt/**)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ],
     "additionalDirectories": [
       "/home/frantsiles/react-netcore-web-api/src/Shared"

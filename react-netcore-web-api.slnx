@@ -39,4 +39,10 @@
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/Shared.Messages/Shared.Messages.csproj" />
   </Folder>
+  <Folder Name="/src/Sales/">
+    <Project Path="src/Sales/Sales.Domain/Sales.Domain.csproj" />
+    <Project Path="src/Sales/Sales.Application/Sales.Application.csproj" />
+    <Project Path="src/Sales/Sales.Infrastructure/Sales.Infrastructure.csproj" />
+    <Project Path="src/Sales/Sales.UnitTests/Sales.UnitTests.csproj" />
+  </Folder>
 </Solution>

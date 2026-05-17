@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
-import { ComingSoon } from './components/layout/ComingSoon';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
 import { SessionsPage } from './pages/SessionsPage';
@@ -13,6 +12,15 @@ import { AssistantPage } from './pages/AssistantPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { PartiesPage } from './features/parties/PartiesPage';
 import { CatalogPage } from './features/catalog/CatalogPage';
+import { SalesPage } from './features/sales/SalesPage';
+import { PurchasingPage } from './features/purchasing/PurchasingPage';
+import { InventoryPage } from './features/inventory/InventoryPage';
+import { AccountingPage } from './features/accounting/AccountingPage';
+import { BankingPage } from './features/banking/BankingPage';
+import { TaxPage } from './features/tax/TaxPage';
+import { ReportsPage } from './features/reports/ReportsPage';
+import { ApprovalsPage } from './features/approvals/ApprovalsPage';
+import { HRPage } from './features/hr/HRPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,19 +53,19 @@ export default function App() {
               {/* Negocio */}
               <Route path="/parties" element={<PartiesPage />} />
               <Route path="/catalog" element={<CatalogPage />} />
-              <Route path="/sales" element={<ComingSoon module="Ventas" />} />
-              <Route path="/purchasing" element={<ComingSoon module="Compras" />} />
-              <Route path="/inventory" element={<ComingSoon module="Inventario" />} />
+              <Route path="/sales" element={<SalesPage />} />
+              <Route path="/purchasing" element={<PurchasingPage />} />
+              <Route path="/inventory" element={<InventoryPage />} />
 
               {/* Finanzas */}
-              <Route path="/accounting" element={<ComingSoon module="Contabilidad" />} />
-              <Route path="/banking" element={<ComingSoon module="Banca" />} />
-              <Route path="/tax" element={<ComingSoon module="Impuestos" />} />
-              <Route path="/reports" element={<ComingSoon module="Reportes" />} />
+              <Route path="/accounting" element={<AccountingPage />} />
+              <Route path="/banking" element={<BankingPage />} />
+              <Route path="/tax" element={<TaxPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
 
               {/* Organización */}
-              <Route path="/approvals" element={<ComingSoon module="Aprobaciones" />} />
-              <Route path="/hr" element={<ComingSoon module="Recursos Humanos" />} />
+              <Route path="/approvals" element={<ApprovalsPage />} />
+              <Route path="/hr" element={<HRPage />} />
 
               {/* Admin (dentro del shell) */}
               <Route

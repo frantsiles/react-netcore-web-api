@@ -12,4 +12,5 @@ public interface IApiClient
     Task<TResponse?> PatchAsync<TRequest, TResponse>(string path, TRequest body, string bearerToken, CancellationToken ct = default);
     Task PatchAsync(string path, string bearerToken, CancellationToken ct = default);
     Task DeleteAsync(string path, string bearerToken, CancellationToken ct = default);
+    Task<TResponse?> PutAsync<TRequest, TResponse>(string path, TRequest body, string bearerToken, CancellationToken ct = default);
 }

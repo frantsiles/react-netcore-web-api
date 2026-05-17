@@ -69,4 +69,10 @@
     <Project Path="src/Accounting/Accounting.Infrastructure/Accounting.Infrastructure.csproj" />
     <Project Path="src/Accounting/Accounting.UnitTests/Accounting.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Banking/">
+    <Project Path="src/Banking/Banking.Domain/Banking.Domain.csproj" />
+    <Project Path="src/Banking/Banking.Application/Banking.Application.csproj" />
+    <Project Path="src/Banking/Banking.Infrastructure/Banking.Infrastructure.csproj" />
+    <Project Path="src/Banking/Banking.UnitTests/Banking.UnitTests.csproj" />
+  </Folder>
 </Solution>

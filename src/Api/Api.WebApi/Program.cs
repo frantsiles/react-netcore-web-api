@@ -14,6 +14,8 @@ using Purchasing.Application;
 using Purchasing.Infrastructure;
 using Accounting.Application;
 using Accounting.Infrastructure;
+using Banking.Application;
+using Banking.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -81,6 +83,8 @@ builder.Services.AddPurchasingApplication();
 builder.Services.AddPurchasingInfrastructure(builder.Configuration);
 builder.Services.AddAccountingApplication();
 builder.Services.AddAccountingInfrastructure(builder.Configuration);
+builder.Services.AddBankingApplication();
+builder.Services.AddBankingInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

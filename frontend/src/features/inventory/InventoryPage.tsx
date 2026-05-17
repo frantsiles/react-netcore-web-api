@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   useReactTable, getCoreRowModel, getSortedRowModel,
@@ -124,9 +124,14 @@ export function InventoryPage() {
     setIsAdjustOpen(true)
   }
 
-  // ── Columns ────────────────────────────────────────────────────────────────
+  const warehouseMap = useMemo(
+    () => new Map(warehouses?.map(w => [w.id, w.name]) ?? []),
+    [warehouses]
+  )
 
-  const itemColumns = [
+  // ── Columns ───────────────────────────────────────────────────────────────
+
+  const itemColumns = useMemo(() => [
     iCol.accessor('sku', {
       header: 'SKU',
       cell: i => <span className="font-mono text-sm font-medium">{i.getValue()}</span>,
@@ -134,8 +139,8 @@ export function InventoryPage() {
     iCol.accessor('warehouseId', {
       header: 'Almacén',
       cell: i => {
-        const wh = warehouses?.find(w => w.id === i.getValue())
-        return <span className="text-sm">{wh?.name ?? i.getValue().slice(0, 8) + '…'}</span>
+        const name = warehouseMap.get(i.getValue())
+        return <span className="text-sm">{name ?? i.getValue().slice(0, 8) + '…'}</span>
       },
     }),
     iCol.accessor('quantityOnHand', {
@@ -185,9 +190,9 @@ export function InventoryPage() {
         </DropdownMenu>
       ),
     }),
-  ]
+  ], [warehouseMap])
 
-  const warehouseColumns = [
+  const warehouseColumns = useMemo(() => [
     wCol.accessor('code', {
       header: 'Código',
       cell: i => <span className="font-mono text-sm font-medium">{i.getValue()}</span>,
@@ -203,7 +208,7 @@ export function InventoryPage() {
         {i.getValue() === 'Active' ? 'Activo' : 'Inactivo'}
       </Badge>,
     }),
-  ]
+  ], [])
 
   const itemTable = useReactTable({
     data: items ?? [], columns: itemColumns,

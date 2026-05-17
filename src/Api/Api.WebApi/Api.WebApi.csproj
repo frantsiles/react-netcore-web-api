@@ -48,6 +48,10 @@
     <ProjectReference Include="..\..\Accounting\Accounting.Infrastructure\Accounting.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Banking\Banking.Application\Banking.Application.csproj" />
     <ProjectReference Include="..\..\Banking\Banking.Infrastructure\Banking.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Tax\Tax.Application\Tax.Application.csproj" />
+    <ProjectReference Include="..\..\Tax\Tax.Infrastructure\Tax.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Approvals\Approvals.Application\Approvals.Application.csproj" />
+    <ProjectReference Include="..\..\Approvals\Approvals.Infrastructure\Approvals.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

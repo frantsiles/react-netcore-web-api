@@ -16,6 +16,10 @@ using Accounting.Application;
 using Accounting.Infrastructure;
 using Banking.Application;
 using Banking.Infrastructure;
+using Tax.Application;
+using Tax.Infrastructure;
+using Approvals.Application;
+using Approvals.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -85,6 +89,10 @@ builder.Services.AddAccountingApplication();
 builder.Services.AddAccountingInfrastructure(builder.Configuration);
 builder.Services.AddBankingApplication();
 builder.Services.AddBankingInfrastructure(builder.Configuration);
+builder.Services.AddTaxApplication();
+builder.Services.AddTaxInfrastructure(builder.Configuration);
+builder.Services.AddApprovalsApplication();
+builder.Services.AddApprovalsInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

@@ -75,4 +75,16 @@
     <Project Path="src/Banking/Banking.Infrastructure/Banking.Infrastructure.csproj" />
     <Project Path="src/Banking/Banking.UnitTests/Banking.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Tax/">
+    <Project Path="src/Tax/Tax.Domain/Tax.Domain.csproj" />
+    <Project Path="src/Tax/Tax.Application/Tax.Application.csproj" />
+    <Project Path="src/Tax/Tax.Infrastructure/Tax.Infrastructure.csproj" />
+    <Project Path="src/Tax/Tax.UnitTests/Tax.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/src/Approvals/">
+    <Project Path="src/Approvals/Approvals.Domain/Approvals.Domain.csproj" />
+    <Project Path="src/Approvals/Approvals.Application/Approvals.Application.csproj" />
+    <Project Path="src/Approvals/Approvals.Infrastructure/Approvals.Infrastructure.csproj" />
+    <Project Path="src/Approvals/Approvals.UnitTests/Approvals.UnitTests.csproj" />
+  </Folder>
 </Solution>

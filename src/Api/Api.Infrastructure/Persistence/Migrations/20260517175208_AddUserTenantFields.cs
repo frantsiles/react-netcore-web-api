@@ -17,14 +17,14 @@ namespace Api.Infrastructure.Persistence.Migrations
                 type: "character varying(2)",
                 maxLength: 2,
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "US");
 
             migrationBuilder.AddColumn<Guid>(
                 name: "TenantId",
                 table: "Users",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: new Guid("00000000-0000-0000-0000-000000000001"));
         }
 
         /// <inheritdoc />

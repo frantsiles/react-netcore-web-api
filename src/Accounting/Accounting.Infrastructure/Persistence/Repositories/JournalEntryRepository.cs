@@ -8,7 +8,7 @@ public class JournalEntryRepository(AccountingDbContext db) : IJournalEntryRepos
 {
     public Task<JournalEntry?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         db.JournalEntries
-            .Include("_lines")
+            .Include(e => e.Lines)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
 
     public Task<bool> ExistsByNumberAsync(Guid tenantId, string entryNumber, CancellationToken ct = default) =>
@@ -20,7 +20,7 @@ public class JournalEntryRepository(AccountingDbContext db) : IJournalEntryRepos
         CancellationToken ct = default)
     {
         var query = db.JournalEntries
-            .Include("_lines")
+            .Include(e => e.Lines)
             .Where(e => e.TenantId == tenantId)
             .AsQueryable();
 

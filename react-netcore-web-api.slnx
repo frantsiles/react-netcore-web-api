@@ -87,4 +87,9 @@
     <Project Path="src/Approvals/Approvals.Infrastructure/Approvals.Infrastructure.csproj" />
     <Project Path="src/Approvals/Approvals.UnitTests/Approvals.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Reporting/">
+    <Project Path="src/Reporting/Reporting.Application/Reporting.Application.csproj" />
+    <Project Path="src/Reporting/Reporting.Infrastructure/Reporting.Infrastructure.csproj" />
+    <Project Path="src/Reporting/Reporting.UnitTests/Reporting.UnitTests.csproj" />
+  </Folder>
 </Solution>

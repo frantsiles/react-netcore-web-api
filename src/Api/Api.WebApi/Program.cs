@@ -20,6 +20,8 @@ using Tax.Application;
 using Tax.Infrastructure;
 using Approvals.Application;
 using Approvals.Infrastructure;
+using Reporting.Application;
+using Reporting.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -93,6 +95,8 @@ builder.Services.AddTaxApplication();
 builder.Services.AddTaxInfrastructure(builder.Configuration);
 builder.Services.AddApprovalsApplication();
 builder.Services.AddApprovalsInfrastructure(builder.Configuration);
+builder.Services.AddReportingApplication();
+builder.Services.AddReportingInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

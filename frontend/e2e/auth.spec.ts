@@ -43,7 +43,7 @@ test.describe('Authentication flow', () => {
     await loginPage.login('admin@demo.com', 'Admin123!');
 
     await expect(page).toHaveURL(/\/users/);
-    await expect(page.getByRole('heading', { name: /users/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /usuarios del sistema/i })).toBeVisible();
   });
 
   test('logout redirects back to /login', async ({ page }) => {

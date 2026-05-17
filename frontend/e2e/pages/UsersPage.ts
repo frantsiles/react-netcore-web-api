@@ -10,10 +10,10 @@ export class UsersPage {
   readonly userFullName: Locator;
 
   constructor(private readonly page: Page) {
-    this.heading      = page.getByRole('heading', { name: /users/i });
+    this.heading      = page.getByRole('heading', { name: /usuarios del sistema/i });
     this.table        = page.getByRole('table');
-    this.logoutButton = page.getByRole('button', { name: /log out/i });
-    this.userFullName = page.getByText(/logged in as/i);
+    this.logoutButton = page.getByRole('button', { name: /salir/i });
+    this.userFullName = page.getByText(/hola, /i);
   }
 
   async goto() {

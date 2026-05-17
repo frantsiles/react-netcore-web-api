@@ -11,10 +11,10 @@ export class LoginPage {
   readonly errorMessage: Locator;
 
   constructor(private readonly page: Page) {
-    this.emailInput    = page.getByLabel('Email');
-    this.passwordInput = page.getByLabel('Password');
-    this.submitButton  = page.getByRole('button', { name: /log in/i });
-    this.errorMessage  = page.getByText(/invalid email or password/i);
+    this.emailInput    = page.getByLabel(/email/i);
+    this.passwordInput = page.getByLabel(/password|contraseña/i);
+    this.submitButton  = page.getByRole('button', { name: /ingresar|log in/i });
+    this.errorMessage  = page.getByText(/invalid email or password|email o contraseña incorrectos/i);
   }
 
   async goto() {

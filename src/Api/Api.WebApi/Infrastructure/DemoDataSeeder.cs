@@ -32,70 +32,56 @@ public static class DemoDataSeeder
     private static readonly Guid MesaGourmetId = Guid.Parse("00000000-0000-0000-0000-000000000005");
     private static readonly Guid MercaMasId    = Guid.Parse("00000000-0000-0000-0000-000000000006");
 
+    // Each company is seeded independently — adding a new company never requires a DB reset.
+    private static readonly (Guid Id, string Name, string Slug, string Country, string Currency, TenantPlan Plan,
+        string Email, string Password, string AdminFirst, string AdminLast,
+        Func<IServiceProvider, Task> Seeder)[] Companies =
+    [
+        (TechSolId,    "TechSol Distribuciones S.A.", "techsol",    "ES", "EUR", TenantPlan.Enterprise,
+         "admin@techsol.es",     "TechSol123!",    "Admin", "TechSol",     sp => SeedTechSolAsync(sp)),
+        (NexoId,       "Nexo Consulting Group",       "nexo",       "MX", "MXN", TenantPlan.Standard,
+         "admin@nexo.mx",        "Nexo123!",       "Admin", "Nexo",        sp => SeedNexoAsync(sp)),
+        (BellaModaId,  "Bella Moda Retail S.A.",      "bellamoda",  "AR", "ARS", TenantPlan.Standard,
+         "admin@bellamoda.ar",   "BellaModa123!",  "Admin", "BellaModa",   sp => SeedBellaModaAsync(sp)),
+        (MesaGourmetId,"La Mesa Gourmet S.R.L.",      "mesagourmet","ES", "EUR", TenantPlan.Free,
+         "admin@mesagourmet.es", "MesaGourmet123!","Admin", "MesaGourmet", sp => SeedMesaGourmetAsync(sp)),
+        (MercaMasId,   "MercaMás S.A.",               "mercamas",   "CR", "CRC", TenantPlan.Enterprise,
+         "admin@mercamas.cr",    "MercaMas123!",   "Admin", "MercaMas",    sp => SeedMercaMasAsync(sp)),
+    ];
+
     public static async Task SeedAsync(IServiceProvider provider, ILogger logger)
     {
         using var scope = provider.CreateScope();
         var sp = scope.ServiceProvider;
-
         var controlPlane = sp.GetRequiredService<ControlPlaneDbContext>();
-        if (await controlPlane.Tenants.AnyAsync(t => t.Id == TechSolId)) return;
+        var appDb = sp.GetRequiredService<AppDbContext>();
+        var adminRole = await appDb.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
 
-        logger.LogInformation("Seeding demo companies...");
-
-        await SeedTenantsAsync(controlPlane);
-        await SeedDemoUsersAsync(sp);
-        await SeedTechSolAsync(sp);
-        await SeedNexoAsync(sp);
-        await SeedBellaModaAsync(sp);
-        await SeedMesaGourmetAsync(sp);
-        await SeedMercaMasAsync(sp);
-
-        logger.LogInformation("Demo seed completed: 5 companies, full ERP data loaded.");
-    }
-
-    // ── Tenants ───────────────────────────────────────────────────────────────
-
-    private static async Task SeedTenantsAsync(ControlPlaneDbContext db)
-    {
-        var companies = new[]
+        var seeded = 0;
+        foreach (var c in Companies)
         {
-            Tenant.CreateWithId(TechSolId,    "TechSol Distribuciones S.A.", "techsol",    "ES", "EUR", TenantPlan.Enterprise),
-            Tenant.CreateWithId(NexoId,       "Nexo Consulting Group",       "nexo",       "MX", "MXN", TenantPlan.Standard),
-            Tenant.CreateWithId(BellaModaId,  "Bella Moda Retail S.A.",      "bellamoda",  "AR", "ARS", TenantPlan.Standard),
-            Tenant.CreateWithId(MesaGourmetId,"La Mesa Gourmet S.R.L.",      "mesagourmet","ES", "EUR", TenantPlan.Free),
-            Tenant.CreateWithId(MercaMasId,   "MercaMás S.A.",               "mercamas",   "CR", "CRC", TenantPlan.Enterprise),
-        };
+            if (await controlPlane.Tenants.AnyAsync(t => t.Id == c.Id)) continue;
 
-        await db.Tenants.AddRangeAsync(companies);
-        await db.SaveChangesAsync();
-    }
+            var tenant = Tenant.CreateWithId(c.Id, c.Name, c.Slug, c.Country, c.Currency, c.Plan);
+            await controlPlane.Tenants.AddAsync(tenant);
+            await controlPlane.SaveChangesAsync();
 
-    // ── Demo users (one admin per tenant) ────────────────────────────────────
+            if (adminRole is not null && !await appDb.Users.AnyAsync(u => u.Email.Value == c.Email))
+            {
+                var hash = BCrypt.Net.BCrypt.HashPassword(c.Password);
+                var user = User.Create(c.AdminFirst, c.AdminLast, c.Email, hash, c.Id, c.Country);
+                user.AssignRole(adminRole);
+                await appDb.Users.AddAsync(user);
+                await appDb.SaveChangesAsync();
+            }
 
-    private static async Task SeedDemoUsersAsync(IServiceProvider sp)
-    {
-        var db = sp.GetRequiredService<AppDbContext>();
-        var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
-        if (adminRole is null) return;
-
-        var users = new[]
-        {
-            (Email: "admin@techsol.es",     Password: "TechSol123!",    First: "Admin", Last: "TechSol",    Tenant: TechSolId,     Country: "ES"),
-            (Email: "admin@nexo.mx",        Password: "Nexo123!",       First: "Admin", Last: "Nexo",       Tenant: NexoId,        Country: "MX"),
-            (Email: "admin@bellamoda.ar",   Password: "BellaModa123!",  First: "Admin", Last: "BellaModa",  Tenant: BellaModaId,   Country: "AR"),
-            (Email: "admin@mesagourmet.es", Password: "MesaGourmet123!",First: "Admin", Last: "MesaGourmet",Tenant: MesaGourmetId, Country: "ES"),
-            (Email: "admin@mercamas.cr",    Password: "MercaMas123!",   First: "Admin", Last: "MercaMas",   Tenant: MercaMasId,    Country: "CR"),
-        };
-
-        foreach (var (email, password, first, last, tenant, country) in users)
-        {
-            var hash = BCrypt.Net.BCrypt.HashPassword(password);
-            var user = User.Create(first, last, email, hash, tenant, country);
-            user.AssignRole(adminRole);
-            await db.Users.AddAsync(user);
+            await c.Seeder(sp);
+            logger.LogInformation("Demo company seeded: {Name}", c.Name);
+            seeded++;
         }
 
-        await db.SaveChangesAsync();
+        if (seeded > 0)
+            logger.LogInformation("Demo seed completed: {Count} new companies added.", seeded);
     }
 
     // ── TechSol Distribuciones S.A. ──────────────────────────────────────────

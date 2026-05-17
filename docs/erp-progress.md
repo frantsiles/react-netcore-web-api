@@ -137,6 +137,24 @@
 
 ---
 
+## Actualización de sesión (2026-05-17)
+
+Cambios realizados en la sesión y presentes en el repositorio:
+
+- Commit del trabajo BFF + frontend (E4–E9): páginas, pickers y extensión `PutAsync` en `IApiClient`.
+- YARP Gateway: añadidas rutas explícitas para los módulos BFF (`/bff/parties/**`, `/bff/catalog/**`, `/bff/sales/**`, `/bff/purchasing/**`, `/bff/inventory/**`, `/bff/accounting/**`, `/bff/banking/**`, `/bff/tax/**`, `/bff/approvals/**`, `/bff/hr/**`, `/bff/reports/**`).
+- Frontend: `AccountPicker` añadido e integrado en el diálogo de creación de cuentas bancarias (vinculación con `linkedAccountingAccountId`).
+- Módulo `Invoicing` (E10) — esqueleto creado: dominio (`Invoice`, `InvoiceLine`), comando `ConvertSalesOrderToInvoiceCommand`, handler esqueleto y `InvoicesController` (endpoint `/api/invoicing/convert`).
+
+Pendientes principales (siguen en el roadmap):
+
+- `Configurar Postgres + migraciones EF` — pendiente
+- `Agregar E2E Playwright tests ERP` — pendiente
+
+Commits recientes referenciados: 0c79297, c37078c, fadb2aa, 64d1e2c.
+
+---
+
 ## Decisiones arquitectónicas transversales
 
 | Decisión | Valor | Referencia |

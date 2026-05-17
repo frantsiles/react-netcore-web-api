@@ -99,7 +99,7 @@ type AccountForm = z.infer<typeof accountSchema>;
 const txSchema = z.object({
   transactionDate: z.string().min(1, "Requerido"),
   description: z.string().min(1, "Requerido"),
-  amount: z.coerce.number().positive("> 0"),
+  amount: z.number().positive("> 0"),
   type: z.enum(["Debit", "Credit"]),
   referenceNumber: z.string().optional(),
 });
@@ -487,7 +487,7 @@ export function BankingPage() {
                 <Input
                   type="number"
                   step="0.01"
-                  {...txForm.register("amount")}
+                  {...txForm.register("amount", { valueAsNumber: true })}
                 />
               </div>
               <div className="space-y-1.5">

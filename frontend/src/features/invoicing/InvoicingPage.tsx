@@ -40,8 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/contexts/AuthContext";
-import axios from "axios";
+import api from "@/services/api";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,7 +84,7 @@ const convertSchema = z.object({
 });
 
 const paymentSchema = z.object({
-  amount: z.coerce.number().positive("Amount must be positive"),
+  amount: z.number().positive("Amount must be positive"),
   currencyCode: z.string().length(3, "3-letter ISO code"),
   paidAt: z.string().min(1, "Date is required"),
   reference: z.string().optional(),
@@ -93,12 +92,6 @@ const paymentSchema = z.object({
 
 type ConvertForm = z.infer<typeof convertSchema>;
 type PaymentForm = z.infer<typeof paymentSchema>;
-
-// ── API helpers ───────────────────────────────────────────────────────────────
-
-const api = (token: string) => ({
-  headers: { Authorization: `Bearer ${token}` },
-});
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -122,7 +115,6 @@ const col = createColumnHelper<Invoice>();
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function InvoicingPage() {
-  const { token } = useAuth();
   const qc = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -132,15 +124,14 @@ export function InvoicingPage() {
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ["invoices"],
     queryFn: async () => {
-      const res = await axios.get("/bff/invoicing/invoices", api(token!));
+      const res = await api.get("/bff/invoicing/invoices");
       return res.data;
     },
-    enabled: !!token,
   });
 
   const convertMut = useMutation({
     mutationFn: async (data: ConvertForm) => {
-      const res = await axios.post("/bff/invoicing/invoices/convert", data, api(token!));
+      const res = await api.post("/bff/invoicing/invoices/convert", data);
       return res.data;
     },
     onSuccess: () => {
@@ -157,7 +148,7 @@ export function InvoicingPage() {
 
   const issueMut = useMutation({
     mutationFn: async (id: string) => {
-      const res = await axios.post(`/bff/invoicing/invoices/${id}/issue`, {}, api(token!));
+      const res = await api.post(`/bff/invoicing/invoices/${id}/issue`, {});
       return res.data;
     },
     onSuccess: () => {
@@ -172,7 +163,7 @@ export function InvoicingPage() {
 
   const paymentMut = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: PaymentForm }) => {
-      const res = await axios.post(`/bff/invoicing/invoices/${id}/payments`, data, api(token!));
+      const res = await api.post(`/bff/invoicing/invoices/${id}/payments`, data);
       return res.data;
     },
     onSuccess: () => {
@@ -189,8 +180,8 @@ export function InvoicingPage() {
 
   const cancelMut = useMutation({
     mutationFn: async (id: string) => {
-      const res = await axios.post(`/bff/invoicing/invoices/${id}/cancel`,
-        { reason: "Cancelled by user" }, api(token!));
+      const res = await api.post(`/bff/invoicing/invoices/${id}/cancel`,
+        { reason: "Cancelled by user" });
       return res.data;
     },
     onSuccess: () => {
@@ -385,7 +376,7 @@ export function InvoicingPage() {
           })} className="space-y-4">
             <div className="space-y-2">
               <Label>Amount</Label>
-              <Input type="number" step="0.01" {...paymentForm.register("amount")} />
+              <Input type="number" step="0.01" {...paymentForm.register("amount", { valueAsNumber: true })} />
               {paymentForm.formState.errors.amount && (
                 <p className="text-xs text-destructive">{paymentForm.formState.errors.amount.message}</p>
               )}

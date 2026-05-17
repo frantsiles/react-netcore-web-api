@@ -69,8 +69,8 @@ const lineSchema = z.object({
   catalogItemId:  z.string().uuid('UUID requerido'),
   sku:            z.string().min(1, 'Requerido'),
   itemName:       z.string().min(1, 'Requerido'),
-  quantityOrdered: z.coerce.number().positive('> 0'),
-  unitCostAmount:  z.coerce.number().min(0),
+  quantityOrdered: z.number().positive('> 0'),
+  unitCostAmount:  z.number().min(0),
   notes:           z.string().optional(),
 })
 type LineForm = z.infer<typeof lineSchema>
@@ -78,7 +78,7 @@ type LineForm = z.infer<typeof lineSchema>
 const receiveSchema = z.object({
   lineId:           z.string().uuid('UUID requerido'),
   warehouseId:      z.string().uuid('UUID requerido'),
-  quantityReceived: z.coerce.number().positive('> 0'),
+  quantityReceived: z.number().positive('> 0'),
 })
 type ReceiveForm = z.infer<typeof receiveSchema>
 
@@ -413,12 +413,12 @@ export function PurchasingPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="l-qty">Cantidad *</Label>
-                <Input id="l-qty" type="number" step="0.01" {...lineForm.register('quantityOrdered')} />
+                <Input id="l-qty" type="number" step="0.01" {...lineForm.register('quantityOrdered', { valueAsNumber: true })} />
                 {lineForm.formState.errors.quantityOrdered && <p className="text-xs text-destructive">{lineForm.formState.errors.quantityOrdered.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="l-cost">Costo unitario *</Label>
-                <Input id="l-cost" type="number" step="0.01" {...lineForm.register('unitCostAmount')} />
+                <Input id="l-cost" type="number" step="0.01" {...lineForm.register('unitCostAmount', { valueAsNumber: true })} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -464,7 +464,7 @@ export function PurchasingPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="r-qty">Cantidad recibida *</Label>
-              <Input id="r-qty" type="number" step="0.01" {...receiveForm.register('quantityReceived')} />
+              <Input id="r-qty" type="number" step="0.01" {...receiveForm.register('quantityReceived', { valueAsNumber: true })} />
               {receiveForm.formState.errors.quantityReceived && <p className="text-xs text-destructive">{receiveForm.formState.errors.quantityReceived.message}</p>}
             </div>
             <DialogFooter>

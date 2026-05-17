@@ -140,7 +140,7 @@ export function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
                 <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => fmt(v, true)} />
+                <Tooltip formatter={(v) => fmt(v as number, true)} />
                 <Legend />
                 <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="hsl(221,83%,53%)" fill="url(#ingresosGrad)" strokeWidth={2} />
                 <Area type="monotone" dataKey="costos" name="Costos" stroke="hsl(0,84%,60%)" fill="url(#costosGrad)" strokeWidth={2} />

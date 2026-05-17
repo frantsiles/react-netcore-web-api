@@ -23,7 +23,7 @@ export function PartyPicker({ value, onChange, roleType, placeholder, disabled }
   const options: PickerOption[] = useMemo(
     () =>
       (data ?? []).map(p => ({
-        id:       p.id,
+        id:       p.partyId,
         label:    p.legalName,
         sublabel: [p.tradeName, p.taxId].filter(Boolean).join(' · ') || p.partyType,
       })),

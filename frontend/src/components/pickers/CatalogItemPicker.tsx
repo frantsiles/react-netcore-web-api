@@ -20,7 +20,7 @@ export function CatalogItemPicker({ value, onChange, placeholder, disabled }: Ca
   const options: PickerOption[] = useMemo(
     () =>
       (data ?? []).map(item => ({
-        id:       item.id,
+        id:       item.catalogItemId,
         label:    item.name,
         sublabel: item.sku,
       })),
@@ -28,7 +28,7 @@ export function CatalogItemPicker({ value, onChange, placeholder, disabled }: Ca
   )
 
   const handleChange = (id: string, opt: PickerOption) => {
-    const item = data?.find(i => i.id === id)
+    const item = data?.find(i => i.catalogItemId === id)
     onChange(id, item?.sku ?? opt.sublabel ?? '', opt.label)
   }
 

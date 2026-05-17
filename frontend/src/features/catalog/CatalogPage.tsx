@@ -63,7 +63,7 @@ const itemSchema = z.object({
   taxCategory:     z.string().min(1, 'Requerido'),
   defaultCurrency: z.string().length(3, 'Código de 3 letras'),
   countryCode:     z.string().length(2, 'Código de 2 letras'),
-  trackInventory:  z.boolean().default(false),
+  trackInventory:  z.boolean(),
 })
 type ItemForm = z.infer<typeof itemSchema>
 

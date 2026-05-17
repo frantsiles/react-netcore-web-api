@@ -69,10 +69,10 @@ const lineSchema = z.object({
   catalogItemId:   z.string().uuid('UUID requerido'),
   sku:             z.string().min(1, 'Requerido'),
   itemName:        z.string().min(1, 'Requerido'),
-  quantity:        z.coerce.number().positive('> 0'),
-  unitPrice:       z.coerce.number().min(0),
+  quantity:        z.number().positive('> 0'),
+  unitPrice:       z.number().min(0),
   currencyCode:    z.string().length(3, '3 letras'),
-  discountPercent: z.coerce.number().min(0).max(100).default(0),
+  discountPercent: z.number().min(0).max(100),
   notes:           z.string().optional(),
 })
 type LineForm = z.infer<typeof lineSchema>
@@ -489,16 +489,16 @@ export function SalesPage() {
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="l-qty">Cantidad *</Label>
-                <Input id="l-qty" type="number" step="0.01" {...lineForm.register('quantity')} />
+                <Input id="l-qty" type="number" step="0.01" {...lineForm.register('quantity', { valueAsNumber: true })} />
                 {lineForm.formState.errors.quantity && <p className="text-xs text-destructive">{lineForm.formState.errors.quantity.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="l-price">Precio Unit. *</Label>
-                <Input id="l-price" type="number" step="0.01" {...lineForm.register('unitPrice')} />
+                <Input id="l-price" type="number" step="0.01" {...lineForm.register('unitPrice', { valueAsNumber: true })} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="l-disc">Desc. % </Label>
-                <Input id="l-disc" type="number" step="0.01" min="0" max="100" {...lineForm.register('discountPercent')} />
+                <Input id="l-disc" type="number" step="0.01" min="0" max="100" {...lineForm.register('discountPercent', { valueAsNumber: true })} />
               </div>
             </div>
             <div className="space-y-1.5">

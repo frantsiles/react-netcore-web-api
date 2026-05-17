@@ -20,7 +20,6 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
@@ -35,15 +34,15 @@ const receiveSchema = z.object({
   catalogItemId:  z.string().uuid('UUID requerido'),
   warehouseId:    z.string().uuid('UUID requerido'),
   sku:            z.string().min(1, 'Requerido'),
-  quantity:       z.coerce.number().positive('> 0'),
+  quantity:       z.number().positive('> 0'),
   referenceNumber: z.string().optional(),
   notes:          z.string().optional(),
-  reorderPoint:   z.coerce.number().min(0).optional(),
+  reorderPoint:   z.number().min(0).optional(),
 })
 type ReceiveForm = z.infer<typeof receiveSchema>
 
 const adjustSchema = z.object({
-  delta:  z.coerce.number().refine(v => v !== 0, 'No puede ser 0'),
+  delta:  z.number().refine(v => v !== 0, 'No puede ser 0'),
   reason: z.string().min(3, 'Mínimo 3 caracteres'),
   notes:  z.string().optional(),
 })
@@ -310,7 +309,7 @@ export function InventoryPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Cantidad *</Label>
-                <Input type="number" step="0.01" {...receiveForm.register('quantity')} />
+                <Input type="number" step="0.01" {...receiveForm.register('quantity', { valueAsNumber: true })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -320,7 +319,7 @@ export function InventoryPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Punto reorden</Label>
-                <Input type="number" step="0.01" {...receiveForm.register('reorderPoint')} />
+                <Input type="number" step="0.01" {...receiveForm.register('reorderPoint', { valueAsNumber: true })} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -342,7 +341,7 @@ export function InventoryPage() {
           <form onSubmit={adjustForm.handleSubmit(v => adjustMut.mutate({ id: selectedItemId!, body: v }))} className="space-y-4">
             <div className="space-y-1.5">
               <Label>Delta (positivo = entrada, negativo = salida) *</Label>
-              <Input type="number" step="0.01" {...adjustForm.register('delta')} placeholder="Ej: 10 o -5" />
+              <Input type="number" step="0.01" {...adjustForm.register('delta', { valueAsNumber: true })} placeholder="Ej: 10 o -5" />
               {adjustForm.formState.errors.delta && <p className="text-xs text-destructive">{adjustForm.formState.errors.delta.message}</p>}
             </div>
             <div className="space-y-1.5">

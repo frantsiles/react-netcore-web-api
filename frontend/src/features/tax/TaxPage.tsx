@@ -27,7 +27,7 @@ const APP_LABELS: Record<TaxApplicability, string> = { Sales: 'Ventas', Purchase
 const schema = z.object({
   code:          z.string().min(1, 'Requerido'),
   name:          z.string().min(1, 'Requerido'),
-  rate:          z.coerce.number().min(0).max(100),
+  rate:          z.number().min(0).max(100),
   applicability: z.enum(['Sales', 'Purchases', 'Both']),
   description:   z.string().optional(),
 })
@@ -157,7 +157,7 @@ export function TaxPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Tasa % *</Label>
-                <Input type="number" step="0.01" {...form.register('rate')} />
+                <Input type="number" step="0.01" {...form.register('rate', { valueAsNumber: true })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Aplica a *</Label>

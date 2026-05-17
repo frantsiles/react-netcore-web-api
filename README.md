@@ -9,42 +9,42 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 
 ## Capacidades demostradas
 
-| Área | Qué hay en este repo |
-|------|---------------------|
-| **Arquitectura distribuida** | Gateway → BFF → API → Worker. Cada servicio con responsabilidad única y contratos explícitos. |
-| **DDD + CQRS + MediatR** | Backend API con cuatro layers, handlers testeables, validación con FluentValidation. |
-| **Autenticación JWT + Sessions** | Access tokens (15 min) + refresh tokens stateful con rotación. Revocación por sesión en tiempo real. |
-| **Persistencia containerizada** | PostgreSQL 17 en contenedor, EF Core con migraciones y data seeding. Fallback a InMemory si no hay connection string. |
-| **Mensajería asíncrona** | MassTransit sobre RabbitMQ (local) o Azure Service Bus (Azure) con el mismo código. |
+| Área                             | Qué hay en este repo                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Arquitectura distribuida**     | Gateway → BFF → API → Worker. Cada servicio con responsabilidad única y contratos explícitos.                                                                  |
+| **DDD + CQRS + MediatR**         | Backend API con cuatro layers, handlers testeables, validación con FluentValidation.                                                                           |
+| **Autenticación JWT + Sessions** | Access tokens (15 min) + refresh tokens stateful con rotación. Revocación por sesión en tiempo real.                                                           |
+| **Persistencia containerizada**  | PostgreSQL 17 en contenedor, EF Core con migraciones y data seeding. Fallback a InMemory si no hay connection string.                                          |
+| **Mensajería asíncrona**         | MassTransit sobre RabbitMQ (local) o Azure Service Bus (Azure) con el mismo código.                                                                            |
 | **Outbox Pattern + Idempotency** | Eventos publicados transaccionalmente vía `MassTransit.EntityFrameworkCore` Outbox sobre Postgres; deduplicación de reintentos con header `X-Idempotency-Key`. |
-| **Serverless** | Azure Functions v4 isolated con HTTP triggers, timer y Service Bus triggers. |
-| **Observabilidad** | OTel SDK + Collector → Prometheus + Loki + Tempo → Grafana. Correlación log-traza automática. |
-| **Contenedores** | Multi-stage Dockerfiles, Docker Compose con perfiles (app / observabilidad / infra). |
-| **Kubernetes** | Kustomize con base + overlays local/azure. Liveness/readiness probes, resource limits. |
-| **IaC Azure** | Bicep: AKS + ACR + Service Bus + Key Vault. Script de deploy end-to-end. |
-| **Testing** | Unit (xUnit + Moq + FluentAssertions), integración (WebApplicationFactory), E2E (Playwright). |
-| **SignalR en tiempo real** | SessionHub con grupos por usuario y admin. Compatible con Azure SignalR Service (drop-in). |
-| **AI Agent + SSE** | Agente conversacional con Semantic Kernel 1.76.0, plugins sobre ISender y streaming via Server-Sent Events. Soporta Ollama, OpenAI y Azure OpenAI. |
-| **Ingeniería AI-augmented** | Claude Code + GitHub Copilot integrados en todo el ciclo. [Ver cómo →](docs/ai-workflow.md) |
-| **CI/CD** | GitHub Actions: tests .NET, build frontend, Docker builds en paralelo, validación de manifiestos K8s. |
+| **Serverless**                   | Azure Functions v4 isolated con HTTP triggers, timer y Service Bus triggers.                                                                                   |
+| **Observabilidad**               | OTel SDK + Collector → Prometheus + Loki + Tempo → Grafana. Correlación log-traza automática.                                                                  |
+| **Contenedores**                 | Multi-stage Dockerfiles, Docker Compose con perfiles (app / observabilidad / infra).                                                                           |
+| **Kubernetes**                   | Kustomize con base + overlays local/azure. Liveness/readiness probes, resource limits.                                                                         |
+| **IaC Azure**                    | Bicep: AKS + ACR + Service Bus + Key Vault. Script de deploy end-to-end.                                                                                       |
+| **Testing**                      | Unit (xUnit + Moq + FluentAssertions), integración (WebApplicationFactory), E2E (Playwright).                                                                  |
+| **SignalR en tiempo real**       | SessionHub con grupos por usuario y admin. Compatible con Azure SignalR Service (drop-in).                                                                     |
+| **AI Agent + SSE**               | Agente conversacional con Semantic Kernel 1.76.0, plugins sobre ISender y streaming via Server-Sent Events. Soporta Ollama, OpenAI y Azure OpenAI.             |
+| **Ingeniería AI-augmented**      | Claude Code + GitHub Copilot integrados en todo el ciclo. [Ver cómo →](docs/ai-workflow.md)                                                                    |
+| **CI/CD**                        | GitHub Actions: tests .NET, build frontend, Docker builds en paralelo, validación de manifiestos K8s.                                                          |
 
 ---
 
 ## Documentación adicional
 
-| Documento | Descripción |
-|-----------|-------------|
-| [docs/ai-workflow.md](docs/ai-workflow.md) | Cómo se usó la IA en este proyecto: qué funcionó, qué no, y dónde el juicio humano fue irreemplazable |
-| [docs/adr/ADR-001](docs/adr/ADR-001-bff-pattern.md) | Patrón BFF — por qué el frontend nunca habla directamente con el API |
-| [docs/adr/ADR-002](docs/adr/ADR-002-ddd-cqrs-mediatr.md) | DDD + CQRS + MediatR en el Backend API |
-| [docs/adr/ADR-003](docs/adr/ADR-003-masstransit-transport-abstraction.md) | MassTransit como abstracción del message bus |
-| [docs/adr/ADR-004](docs/adr/ADR-004-ef-core-inmemory.md) | EF Core InMemory — cero dependencias para una demo |
-| [docs/adr/ADR-005](docs/adr/ADR-005-yarp-gateway.md) | YARP como API Gateway .NET-nativo |
-| [docs/adr/ADR-006](docs/adr/ADR-006-opentelemetry-observability.md) | OpenTelemetry como estándar de observabilidad |
-| [docs/adr/ADR-007](docs/adr/ADR-007-kustomize-over-helm.md) | Kustomize en lugar de Helm |
-| [docs/adr/ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) | Refresh tokens stateful + revocación en tiempo real con SignalR |
-| [docs/adr/ADR-010](docs/adr/ADR-010-semantic-kernel-agent-sse.md) | Agente IA con Semantic Kernel + SSE: plugins sobre ISender, IKernelFactory multi-provider, BFF pass-through |
-| [docs/adr/ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md) | Outbox Pattern de MassTransit + Idempotency Key como middleware |
+| Documento                                                                 | Descripción                                                                                                 |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [docs/ai-workflow.md](docs/ai-workflow.md)                                | Cómo se usó la IA en este proyecto: qué funcionó, qué no, y dónde el juicio humano fue irreemplazable       |
+| [docs/adr/ADR-001](docs/adr/ADR-001-bff-pattern.md)                       | Patrón BFF — por qué el frontend nunca habla directamente con el API                                        |
+| [docs/adr/ADR-002](docs/adr/ADR-002-ddd-cqrs-mediatr.md)                  | DDD + CQRS + MediatR en el Backend API                                                                      |
+| [docs/adr/ADR-003](docs/adr/ADR-003-masstransit-transport-abstraction.md) | MassTransit como abstracción del message bus                                                                |
+| [docs/adr/ADR-004](docs/adr/ADR-004-ef-core-inmemory.md)                  | EF Core InMemory — cero dependencias para una demo                                                          |
+| [docs/adr/ADR-005](docs/adr/ADR-005-yarp-gateway.md)                      | YARP como API Gateway .NET-nativo                                                                           |
+| [docs/adr/ADR-006](docs/adr/ADR-006-opentelemetry-observability.md)       | OpenTelemetry como estándar de observabilidad                                                               |
+| [docs/adr/ADR-007](docs/adr/ADR-007-kustomize-over-helm.md)               | Kustomize en lugar de Helm                                                                                  |
+| [docs/adr/ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md)   | Refresh tokens stateful + revocación en tiempo real con SignalR                                             |
+| [docs/adr/ADR-010](docs/adr/ADR-010-semantic-kernel-agent-sse.md)         | Agente IA con Semantic Kernel + SSE: plugins sobre ISender, IKernelFactory multi-provider, BFF pass-through |
+| [docs/adr/ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md)        | Outbox Pattern de MassTransit + Idempotency Key como middleware                                             |
 
 ---
 
@@ -155,37 +155,37 @@ OTel Collector
 
 ## 2. Stack tecnológico
 
-| Capa | Tecnología | Versión |
-|------|-----------|---------|
-| Frontend | React + Vite + TypeScript | 19 / 8 / 6 |
-| Estilos | Tailwind CSS (via Vite plugin) | 4 |
-| UI primitivos | Radix UI + lucide-react | - |
-| Estado servidor | TanStack Query | 5 |
-| HTTP client | Axios | 1.15 |
-| WebSockets | @microsoft/signalr | 10 |
-| Backend runtime | .NET / ASP.NET Core | 10.0 |
-| Patrón | DDD + MediatR + CQRS | - |
-| Validación | FluentValidation | 12 |
-| Base de datos | PostgreSQL (contenedor) | 17-alpine |
-| ORM | EF Core + Npgsql provider | 10.0 / 10.0 |
-| Autenticación | JWT Bearer | - |
-| API Gateway | YARP ReverseProxy | 2.2 |
-| Message bus | MassTransit + RabbitMQ / Azure Service Bus | 8.3 |
-| Functions | Azure Functions v4 (isolated) | .NET 8 |
-| Trazas / Métricas | OpenTelemetry SDK | 1.9 |
-| Logs estructurados | Serilog (JSON + OTLP sink) | 8 |
-| Colector OTel | OpenTelemetry Collector Contrib | 0.115 |
-| Métricas | Prometheus | 2.55 |
-| Logs | Grafana Loki | 3.2 |
-| Trazas | Grafana Tempo | 2.6 |
-| Dashboard | Grafana | 11.3 |
-| Contenedores | Docker + Docker Compose | - |
-| Orquestación | Kubernetes + Kustomize | - |
-| IaC Azure | Bicep | - |
-| Tests .NET | xUnit + Moq + FluentAssertions | - |
-| Tests E2E | Playwright | 1.59 |
-| AI Agent | Semantic Kernel | 1.76.0 |
-| LLM local | Ollama (default, sin coste) | - |
+| Capa               | Tecnología                                 | Versión     |
+| ------------------ | ------------------------------------------ | ----------- |
+| Frontend           | React + Vite + TypeScript                  | 19 / 8 / 6  |
+| Estilos            | Tailwind CSS (via Vite plugin)             | 4           |
+| UI primitivos      | Radix UI + lucide-react                    | -           |
+| Estado servidor    | TanStack Query                             | 5           |
+| HTTP client        | Axios                                      | 1.15        |
+| WebSockets         | @microsoft/signalr                         | 10          |
+| Backend runtime    | .NET / ASP.NET Core                        | 10.0        |
+| Patrón             | DDD + MediatR + CQRS                       | -           |
+| Validación         | FluentValidation                           | 12          |
+| Base de datos      | PostgreSQL (contenedor)                    | 17-alpine   |
+| ORM                | EF Core + Npgsql provider                  | 10.0 / 10.0 |
+| Autenticación      | JWT Bearer                                 | -           |
+| API Gateway        | YARP ReverseProxy                          | 2.2         |
+| Message bus        | MassTransit + RabbitMQ / Azure Service Bus | 8.3         |
+| Functions          | Azure Functions v4 (isolated)              | .NET 8      |
+| Trazas / Métricas  | OpenTelemetry SDK                          | 1.9         |
+| Logs estructurados | Serilog (JSON + OTLP sink)                 | 8           |
+| Colector OTel      | OpenTelemetry Collector Contrib            | 0.115       |
+| Métricas           | Prometheus                                 | 2.55        |
+| Logs               | Grafana Loki                               | 3.2         |
+| Trazas             | Grafana Tempo                              | 2.6         |
+| Dashboard          | Grafana                                    | 11.3        |
+| Contenedores       | Docker + Docker Compose                    | -           |
+| Orquestación       | Kubernetes + Kustomize                     | -           |
+| IaC Azure          | Bicep                                      | -           |
+| Tests .NET         | xUnit + Moq + FluentAssertions             | -           |
+| Tests E2E          | Playwright                                 | 1.59        |
+| AI Agent           | Semantic Kernel                            | 1.76.0      |
+| LLM local          | Ollama (default, sin coste)                | -           |
 
 ---
 
@@ -222,11 +222,11 @@ cd react-netcore-web-api
 
 ### Requisitos
 
-| Herramienta | Versión mínima | Verificar |
-|------------|---------------|-----------|
-| .NET SDK | 10.x | `dotnet --version` |
-| Node.js | 20.x | `node --version` |
-| npm | 10.x | `npm --version` |
+| Herramienta | Versión mínima | Verificar          |
+| ----------- | -------------- | ------------------ |
+| .NET SDK    | 10.x           | `dotnet --version` |
+| Node.js     | 20.x           | `node --version`   |
+| npm         | 10.x           | `npm --version`    |
 
 ### Primer uso
 
@@ -245,13 +245,15 @@ npx playwright install --with-deps chromium   # solo si vas a correr tests E2E
 
 ### Levantar la infraestructura (Postgres + RabbitMQ + observabilidad)
 
-Para `dotnet run` necesitas Postgres en `localhost:5433` (lo que asume `appsettings.Development.json`):
+Para `dotnet run` necesitas Postgres en `localhost:5433` (lo que asume `appsettings.Development.json` y `docker-compose.infra.yml`):
 
 ```bash
 docker compose -f docker-compose.infra.yml up -d
 ```
 
 Levanta solo la infraestructura sin las imágenes de la app — los servicios .NET los corres con `dotnet run` y se conectan a Postgres y RabbitMQ del compose de infra.
+
+> Para el stack completo con `./start.sh`, Postgres se expone en `localhost:5432` y la connection string es inyectada desde `docker-compose.yml`.
 
 ### Arrancar servicios individualmente
 
@@ -272,13 +274,13 @@ dotnet run --project src/Gateway/Gateway.Api
 dotnet run --project src/Worker/Worker.Service
 ```
 
-| Servicio | URL | Descripción |
-|----------|-----|-------------|
-| Frontend React | http://localhost:5173 | App principal |
-| Backend API Swagger | http://localhost:5002/swagger | Explora los endpoints del API |
-| BFF Swagger | http://localhost:5001/swagger | Explora los endpoints del BFF |
-| API health | http://localhost:5002/api/health | Liveness check |
-| BFF health | http://localhost:5001/bff/health | Liveness check |
+| Servicio            | URL                              | Descripción                   |
+| ------------------- | -------------------------------- | ----------------------------- |
+| Frontend React      | http://localhost:5173            | App principal                 |
+| Backend API Swagger | http://localhost:5002/swagger    | Explora los endpoints del API |
+| BFF Swagger         | http://localhost:5001/swagger    | Explora los endpoints del BFF |
+| API health          | http://localhost:5002/api/health | Liveness check                |
+| BFF health          | http://localhost:5001/bff/health | Liveness check                |
 
 > **Nota:** el Gateway y el Worker **no son obligatorios** para iterar en local. El Gateway es el punto de entrada en Docker/K8s; el Worker necesita RabbitMQ corriendo.
 
@@ -312,25 +314,25 @@ Flujo principal recomendado. Toda la arquitectura corre en contenedores, igual q
 
 ### Servicios que levanta por defecto
 
-| Servicio | URL / Puerto | Notas |
-|----------|--------------|-------|
-| Frontend (nginx) | http://localhost:5173 | SPA compilado, proxy a BFF |
-| YARP Gateway | http://localhost:5000 | Punto de entrada único |
-| BFF | http://localhost:5001 | Backend For Frontend |
-| Backend API | http://localhost:5002/swagger | Emite JWT, expone Swagger |
-| **PostgreSQL 17** | localhost:5432 | `demo` / `demo123`, BD `demodb` |
-| RabbitMQ | localhost:5672 / UI:15672 | `admin` / `admin123` |
-| Worker | (sin puerto) | Consume cola `user-events` |
+| Servicio          | URL / Puerto                  | Notas                           |
+| ----------------- | ----------------------------- | ------------------------------- |
+| Frontend (nginx)  | http://localhost:5173         | SPA compilado, proxy a BFF      |
+| YARP Gateway      | http://localhost:5000         | Punto de entrada único          |
+| BFF               | http://localhost:5001         | Backend For Frontend            |
+| Backend API       | http://localhost:5002/swagger | Emite JWT, expone Swagger       |
+| **PostgreSQL 17** | localhost:5432                | `demo` / `demo123`, BD `demodb` |
+| RabbitMQ          | localhost:5672 / UI:15672     | `admin` / `admin123`            |
+| Worker            | (sin puerto)                  | Consume cola `user-events`      |
 
 ### Con `--obs` se añaden
 
-| Herramienta | URL | Descripción |
-|-------------|-----|-------------|
-| Grafana | http://localhost:3001 | Dashboard unificado (admin / admin) |
-| Prometheus | http://localhost:9090 | Métricas raw |
-| Loki | http://localhost:3100 | Logs agregados |
-| Tempo | http://localhost:3200 | Trazas distribuidas |
-| OTel Collector | localhost:4317 (gRPC) | Receptor OTLP |
+| Herramienta    | URL                   | Descripción                         |
+| -------------- | --------------------- | ----------------------------------- |
+| Grafana        | http://localhost:3001 | Dashboard unificado (admin / admin) |
+| Prometheus     | http://localhost:9090 | Métricas raw                        |
+| Loki           | http://localhost:3100 | Logs agregados                      |
+| Tempo          | http://localhost:3200 | Trazas distribuidas                 |
+| OTel Collector | localhost:4317 (gRPC) | Receptor OTLP                       |
 
 ### Variables de entorno (`.env`)
 
@@ -416,17 +418,20 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 **Qué es.** Reverse proxy en .NET 10 con [YARP](https://microsoft.github.io/reverse-proxy/). En Docker/K8s es el único servicio expuesto al exterior.
 
 **Qué resuelve.**
+
 - **Punto de entrada único.** El cliente solo conoce una URL aunque por detrás haya N microservicios.
 - **Concerns transversales.** Rate limiting, autenticación de borde, transformación de headers, circuit breaker — todo aplicado una vez, no por servicio.
 - **Health checks activos.** Detecta upstreams caídos antes de mandarles tráfico.
 - **Routing por path.** `/bff/*` → BFF, `/api/*` → API directamente para casos donde no se necesita el BFF (Swagger admin, healthchecks).
 
 **Cuándo lo quieres.**
+
 - Cuando tienes ≥2 servicios públicos y quieres una capa para políticas comunes.
-- Cuando despliegas en Kubernetes y quieres un Ingress *del lado de la app* (no del Ingress Controller) para lógica que el Ingress no expresa bien (auth con JWT, header rewriting complejo).
+- Cuando despliegas en Kubernetes y quieres un Ingress _del lado de la app_ (no del Ingress Controller) para lógica que el Ingress no expresa bien (auth con JWT, header rewriting complejo).
 - Cuando vas a partir un monolito y necesitas ir migrando paths a nuevos servicios sin que el cliente se entere.
 
 **Cuándo es excesivo.**
+
 - Un único servicio HTTP: nginx o el propio Kestrel detrás del Ingress es suficiente.
 - API consumida solo por scripts internos: añade un hop sin valor.
 - Alternativas: si ya pagas por un API Management gestionado (Azure APIM, AWS API Gateway, Kong), suelen cubrir el caso con menos código.
@@ -438,17 +443,20 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 **Qué es.** Servicio .NET intermedio entre el SPA y la API. Tiene la misma estructura en capas que el API (Domain/Application/Infrastructure/Api) pero su `Infrastructure` no habla con BD: habla con la API por HTTP.
 
 **Qué resuelve.**
+
 - **Agregación de respuestas.** Si una pantalla necesita combinar 3 endpoints, el BFF los une y manda un solo payload al cliente — menos round-trips, menos código en el cliente.
 - **Adaptación de contrato.** El API expone un modelo limpio del dominio; el BFF lo adapta a lo que el SPA necesita pintar.
 - **Aislamiento del API.** El equipo de frontend puede cambiar el BFF sin tocar el API. El API puede evolucionar sin romper el frontend.
 - **Auth segura.** El BFF valida el JWT y puede mantener sesiones server-side (cookies HttpOnly) si quieres evitar tokens en el navegador.
 
 **Cuándo lo quieres.**
+
 - Tienes **varios clientes** (web, móvil, ext. de Chrome) con necesidades distintas — un BFF por cliente.
 - El API es de uso público o pertenece a otro equipo, y necesitas una capa que evolucione al ritmo del front.
 - Quieres mover lógica de presentación fuera del cliente (cálculos, formateo, joins).
 
 **Cuándo es excesivo.**
+
 - Un solo cliente con necesidades que coinciden 1:1 con el API: el BFF es un proxy tonto que añade latencia y un servicio más que mantener.
 - Pequeñas apps internas: usa el API directamente.
 
@@ -459,6 +467,7 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 **Qué es.** Servicio .NET con **DDD + CQRS + MediatR** que es la fuente de verdad del dominio. Emite JWTs, aplica migraciones a Postgres, valida con FluentValidation, expone Swagger.
 
 **Qué resuelve.**
+
 - **Encapsular las reglas de negocio.** Si una regla cambia, cambia en un solo lugar.
 - **Testabilidad.** Los handlers de MediatR son testeables en unit tests sin levantar el host.
 - **Reuso.** Un mismo dominio puede ser consumido por BFF web, BFF móvil, integraciones B2B, etc.
@@ -474,6 +483,7 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 **Qué es.** Base de datos relacional ACID en contenedor. El API se conecta vía Npgsql (provider EF Core para Postgres) y aplica migraciones al arrancar (`DatabaseInitializer.InitializeAsync`).
 
 **Qué resuelve.**
+
 - **Persistencia real.** Los datos sobreviven al reinicio del proceso de la app.
 - **Transacciones.** Garantías ACID que un message bus o un caché distribuido no te dan.
 - **Consultas potentes.** SQL con joins, agregaciones, índices, full-text, JSON nativo.
@@ -494,17 +504,20 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 **Qué es.** Broker AMQP 0-9-1 con UI de gestión en `:15672`. En este proyecto es el transporte que usa MassTransit para mover eventos entre API y Worker.
 
 **Qué resuelve.**
+
 - **Desacoplamiento temporal.** El API publica `UserCreated` y sigue. El Worker lo procesa cuando puede. Si el Worker está caído, los mensajes esperan en la cola.
 - **Desacoplamiento de despliegue.** API y Worker pueden desplegarse y escalarse de forma independiente.
 - **Retry y dead-lettering.** Si un consumer falla, RabbitMQ puede reintentar o mover el mensaje a una DLQ.
 - **Fan-out.** Un mismo evento puede tener varios consumers (Worker para enviar email, otro para auditoría, otro para indexación).
 
 **Cuándo lo quieres.**
+
 - Trabajo de fondo que no debe bloquear la respuesta HTTP (envío de email, generación de PDF, cálculo costoso).
 - Comunicación entre servicios donde la **eventual consistency** es aceptable.
 - Workflows largos con pasos que pueden fallar y reintentar de forma independiente.
 
 **Cuándo es excesivo.**
+
 - Comunicación punto a punto que necesita respuesta inmediata: una llamada HTTP es más simple.
 - Procesos cortos y locales: usar `Channel<T>` o `BackgroundService` con cola en memoria evita la dependencia.
 
@@ -526,6 +539,7 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 | `UserRoleChangedConsumer` | `UserRoleChanged` | Auditoría de cambio de roles |
 
 **Cuándo lo quieres.**
+
 - Cuando tienes trabajo asíncrono que justifica un proceso dedicado (no un `Task.Run` perdido en el API).
 - Cuando quieres escalar el procesamiento de eventos sin escalar la API.
 - Cuando el trabajo es lo suficientemente largo o intensivo que metido en el request HTTP daría timeouts.
@@ -540,29 +554,30 @@ Esta sección explica el **por qué** detrás de cada elemento de la arquitectur
 
 **Triggers implementados:**
 
-| Función | Trigger | Ruta / Schedule | Descripción |
-|---------|---------|-----------------|-------------|
-| `GetUsers` | HTTP GET | `/api/functions/users` | Devuelve usuarios (demo) |
-| `GetUserById` | HTTP GET | `/api/functions/users/{id}` | Devuelve usuario por ID |
-| `Heartbeat` | Timer | `0 */5 * * * *` | Cada 5 min, registra latido |
-| `ProcessUserCreated` | Service Bus | topic `user-events` | Procesa evento UserCreated |
-| `ProcessUserDeleted` | Service Bus | topic `user-events` | Procesa evento UserDeleted |
+| Función              | Trigger     | Ruta / Schedule             | Descripción                 |
+| -------------------- | ----------- | --------------------------- | --------------------------- |
+| `GetUsers`           | HTTP GET    | `/api/functions/users`      | Devuelve usuarios (demo)    |
+| `GetUserById`        | HTTP GET    | `/api/functions/users/{id}` | Devuelve usuario por ID     |
+| `Heartbeat`          | Timer       | `0 */5 * * * *`             | Cada 5 min, registra latido |
+| `ProcessUserCreated` | Service Bus | topic `user-events`         | Procesa evento UserCreated  |
+| `ProcessUserDeleted` | Service Bus | topic `user-events`         | Procesa evento UserDeleted  |
 
 **Worker vs Functions — ¿cuál uso?**
 
-| | Worker Service | Azure Functions |
-|--|----------------|-----------------|
-| Despliegue | Pod en Kubernetes, contenedor 24/7 | Function App serverless |
-| Escalado | Manual (réplicas) o KEDA | Automático según cola/HTTP |
-| Coste | Capacidad reservada | Solo cuando se ejecuta |
-| Estado en memoria | Posible (instancia long-running) | Stateless, frío al iniciar |
-| Ideal para | Procesamiento continuo, alto throughput | Picos, tareas raras, integraciones |
+|                   | Worker Service                          | Azure Functions                    |
+| ----------------- | --------------------------------------- | ---------------------------------- |
+| Despliegue        | Pod en Kubernetes, contenedor 24/7      | Function App serverless            |
+| Escalado          | Manual (réplicas) o KEDA                | Automático según cola/HTTP         |
+| Coste             | Capacidad reservada                     | Solo cuando se ejecuta             |
+| Estado en memoria | Posible (instancia long-running)        | Stateless, frío al iniciar         |
+| Ideal para        | Procesamiento continuo, alto throughput | Picos, tareas raras, integraciones |
 
 **Cuándo lo quieres.** Tareas bursty (un import semanal), integraciones reactivas (procesar un evento de Service Bus que ocurre 100 veces al día), o webhooks que reciben tráfico irregular.
 
 **Cuándo es excesivo.** Trabajo continuo: el cold start y el coste por ejecución penalizan. Para 1000 mensajes/segundo constantes el Worker en K8s sale más barato y predecible.
 
 **Ejecutar local:**
+
 ```bash
 npm install -g azure-functions-core-tools@4
 cd src/Functions/Functions.App && func start
@@ -575,6 +590,7 @@ cd src/Functions/Functions.App && func start
 **Qué es.** En `docker-compose.yml` se declara una red bridge llamada `demo-network` y **todos los servicios la comparten**. Docker crea un DNS interno donde el nombre del servicio resuelve a la IP del contenedor.
 
 **Por qué importa.**
+
 - **Service discovery por nombre.** El BFF llama al API como `http://api:8080/`, no como `http://172.x.y.z`. Si el contenedor se recrea con otra IP, el nombre sigue resolviéndolo.
 - **Aislamiento.** Lo que está en `demo-network` no es alcanzable desde otras redes Docker sin attach explícito.
 - **Solo lo expuesto sale al host.** Postgres y RabbitMQ están en `demo-network` y además hacen `ports: 5432:5432` y `5672:5672` — pero podrías quitar ese mapeo en producción para que solo otros contenedores los vean.
@@ -621,6 +637,7 @@ docker compose --profile observability up -d
 Las métricas de cada servicio .NET se envían al OTel Collector, que las expone para Prometheus.
 
 En Grafana → Explore → selecciona **Prometheus**:
+
 ```promql
 # Peticiones HTTP por servicio
 http_server_request_duration_seconds_count{job="demo-api"}
@@ -637,6 +654,7 @@ http_server_request_duration_seconds_count{http_response_status_code="500"}
 Los logs estructurados en JSON van del OTel Sink de Serilog → OTel Collector → Loki.
 
 En Grafana → Explore → selecciona **Loki**:
+
 ```logql
 # Todos los logs del API
 {job="demo-api"}
@@ -762,13 +780,13 @@ kubectl delete -k k8s/overlays/local
 
 ### ¿Qué hay en los manifiestos base?
 
-| Recurso | Para qué sirve |
-|---------|---------------|
-| `namespace.yaml` | Namespaces `demo` y `demo-monitoring` |
-| `api/deployment.yaml` | 2 réplicas del API, con liveness/readiness probes y resource limits |
-| `api/secret.yaml` | Secreto con el JWT secret (**cambiar antes de producción**) |
+| Recurso                     | Para qué sirve                                                         |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `namespace.yaml`            | Namespaces `demo` y `demo-monitoring`                                  |
+| `api/deployment.yaml`       | 2 réplicas del API, con liveness/readiness probes y resource limits    |
+| `api/secret.yaml`           | Secreto con el JWT secret (**cambiar antes de producción**)            |
 | `rabbitmq/statefulset.yaml` | RabbitMQ con PersistentVolumeClaim (los mensajes sobreviven reinicios) |
-| `ingress.yaml` | Nginx Ingress que enruta `/bff` y `/api` al servicio correcto |
+| `ingress.yaml`              | Nginx Ingress que enruta `/bff` y `/api` al servicio correcto          |
 
 ---
 
@@ -778,12 +796,12 @@ La infraestructura en Azure se define con [Bicep](https://learn.microsoft.com/az
 
 ### Recursos que crea
 
-| Recurso | Módulo | Para qué |
-|---------|--------|---------|
-| AKS Cluster | `aks.bicep` | Kubernetes gestionado (1-5 nodos, autoscaling) |
-| Azure Container Registry | `acr.bicep` | Registro privado de imágenes Docker |
-| Service Bus Standard | `servicebus.bicep` | Cola de mensajes para el Worker y Functions |
-| Key Vault | `keyvault.bicep` | Secretos (JWT secret, connection strings) |
+| Recurso                  | Módulo             | Para qué                                       |
+| ------------------------ | ------------------ | ---------------------------------------------- |
+| AKS Cluster              | `aks.bicep`        | Kubernetes gestionado (1-5 nodos, autoscaling) |
+| Azure Container Registry | `acr.bicep`        | Registro privado de imágenes Docker            |
+| Service Bus Standard     | `servicebus.bicep` | Cola de mensajes para el Worker y Functions    |
+| Key Vault                | `keyvault.bicep`   | Secretos (JWT secret, connection strings)      |
 
 ### Deploy completo con un script
 
@@ -793,6 +811,7 @@ La infraestructura en Azure se define con [Bicep](https://learn.microsoft.com/az
 ```
 
 Este script hace todo en orden:
+
 1. Login en Azure
 2. Crea el resource group
 3. Despliega la infraestructura con Bicep
@@ -978,15 +997,15 @@ react-netcore-web-api/
 
 ### Variables de entorno (.env)
 
-| Variable | Valor por defecto | Usado por |
-|----------|------------------|-----------|
-| `JWT_SECRET` | `CHANGE-THIS-...` | API + BFF |
-| `POSTGRES_DB` | `demodb` | Postgres + API (connection string) |
-| `POSTGRES_USER` | `demo` | Postgres + API (connection string) |
-| `POSTGRES_PASSWORD` | `demo123` | Postgres + API (connection string) |
-| `RABBITMQ_USER` | `admin` | RabbitMQ + Worker |
-| `RABBITMQ_PASS` | `admin123` | RabbitMQ + Worker |
-| `GRAFANA_ADMIN_PASS` | `admin` | Grafana |
+| Variable             | Valor por defecto | Usado por                          |
+| -------------------- | ----------------- | ---------------------------------- |
+| `JWT_SECRET`         | `CHANGE-THIS-...` | API + BFF                          |
+| `POSTGRES_DB`        | `demodb`          | Postgres + API (connection string) |
+| `POSTGRES_USER`      | `demo`            | Postgres + API (connection string) |
+| `POSTGRES_PASSWORD`  | `demo123`         | Postgres + API (connection string) |
+| `RABBITMQ_USER`      | `admin`           | RabbitMQ + Worker                  |
+| `RABBITMQ_PASS`      | `admin123`        | RabbitMQ + Worker                  |
+| `GRAFANA_ADMIN_PASS` | `admin`           | Grafana                            |
 
 La connection string del API se compone automáticamente desde las variables anteriores en [docker-compose.yml](docker-compose.yml):
 
@@ -1001,16 +1020,16 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 ```json
 {
   "Otel": {
-    "Endpoint": "http://localhost:4317"   // OTel Collector (Docker: http://otel-collector:4317)
+    "Endpoint": "http://localhost:4317" // OTel Collector (Docker: http://otel-collector:4317)
   },
   "Jwt": {
-    "Secret": "...",          // mínimo 32 caracteres, igual en API y BFF
+    "Secret": "...", // mínimo 32 caracteres, igual en API y BFF
     "Issuer": "demo-api",
     "Audience": "demo-bff",
-    "ExpiresInMinutes": "15"  // access token de corta duración; refresh token dura 30 días
+    "ExpiresInMinutes": "15" // access token de corta duración; refresh token dura 30 días
   },
   "AzureSignalR": {
-    "ConnectionString": ""    // vacío = SignalR local; rellenar para Azure SignalR Service
+    "ConnectionString": "" // vacío = SignalR local; rellenar para Azure SignalR Service
   }
 }
 ```
@@ -1020,7 +1039,7 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 ```json
 {
   "BackendApi": {
-    "BaseUrl": "http://localhost:5002/"   // Docker: http://api:8080/
+    "BaseUrl": "http://localhost:5002/" // Docker: http://api:8080/
   }
 }
 ```
@@ -1030,15 +1049,15 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 ```json
 {
   "MessageBus": {
-    "Transport": "RabbitMQ",             // o "AzureServiceBus"
+    "Transport": "RabbitMQ", // o "AzureServiceBus"
     "RabbitMQ": {
-      "Host": "localhost",               // Docker: rabbitmq
+      "Host": "localhost", // Docker: rabbitmq
       "VirtualHost": "/",
       "Username": "admin",
       "Password": "admin123"
     },
     "AzureServiceBus": {
-      "ConnectionString": ""             // pegar connection string de Azure
+      "ConnectionString": "" // pegar connection string de Azure
     }
   }
 }
@@ -1046,39 +1065,39 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 
 ### Endpoints de la API
 
-| Servicio | Método | Ruta | Auth requerida |
-|----------|--------|------|---------------|
-| API | POST | `/api/auth/login` | No |
-| API | POST | `/api/auth/refresh` | No |
-| API | POST | `/api/auth/logout` | JWT |
-| API | GET | `/api/users` | JWT |
-| API | POST | `/api/users` | JWT · Admin |
-| API | DELETE | `/api/users/{id}` | JWT · Admin |
-| API | PATCH | `/api/users/{id}/role` | JWT · Admin |
-| API | GET | `/api/sessions/my` | JWT |
-| API | GET | `/api/sessions` | JWT · Admin |
-| API | PATCH | `/api/sessions/{id}/revoke` | JWT |
-| API | DELETE | `/api/sessions/my` | JWT |
-| API | DELETE | `/api/admin/users/{userId}/sessions` | JWT · Admin |
-| API | WS | `/hubs/sessions` | JWT (SignalR) |
-| API | GET | `/api/health` | No |
-| BFF | POST | `/bff/auth/login` | No |
-| BFF | POST | `/bff/auth/refresh` | No |
-| BFF | POST | `/bff/auth/logout` | JWT |
-| BFF | GET | `/bff/users` | JWT |
-| BFF | POST | `/bff/users` | JWT · Admin |
-| BFF | DELETE | `/bff/users/{id}` | JWT · Admin |
-| BFF | PATCH | `/bff/users/{id}/role` | JWT · Admin |
-| BFF | GET | `/bff/sessions/my` | JWT |
-| BFF | GET | `/bff/sessions` | JWT · Admin |
-| BFF | PATCH | `/bff/sessions/{id}/revoke` | JWT |
-| BFF | DELETE | `/bff/sessions/my` | JWT |
-| BFF | DELETE | `/bff/admin/users/{userId}/sessions` | JWT · Admin |
-| BFF | GET | `/bff/health` | No |
-| Gateway | GET | `/health` | No |
-| Functions | GET | `/api/functions/users` | No (demo) |
-| API | POST | `/api/assistant` | JWT · SSE |
-| BFF | POST | `/bff/assistant` | JWT · SSE pass-through |
+| Servicio  | Método | Ruta                                 | Auth requerida         |
+| --------- | ------ | ------------------------------------ | ---------------------- |
+| API       | POST   | `/api/auth/login`                    | No                     |
+| API       | POST   | `/api/auth/refresh`                  | No                     |
+| API       | POST   | `/api/auth/logout`                   | JWT                    |
+| API       | GET    | `/api/users`                         | JWT                    |
+| API       | POST   | `/api/users`                         | JWT · Admin            |
+| API       | DELETE | `/api/users/{id}`                    | JWT · Admin            |
+| API       | PATCH  | `/api/users/{id}/role`               | JWT · Admin            |
+| API       | GET    | `/api/sessions/my`                   | JWT                    |
+| API       | GET    | `/api/sessions`                      | JWT · Admin            |
+| API       | PATCH  | `/api/sessions/{id}/revoke`          | JWT                    |
+| API       | DELETE | `/api/sessions/my`                   | JWT                    |
+| API       | DELETE | `/api/admin/users/{userId}/sessions` | JWT · Admin            |
+| API       | WS     | `/hubs/sessions`                     | JWT (SignalR)          |
+| API       | GET    | `/api/health`                        | No                     |
+| BFF       | POST   | `/bff/auth/login`                    | No                     |
+| BFF       | POST   | `/bff/auth/refresh`                  | No                     |
+| BFF       | POST   | `/bff/auth/logout`                   | JWT                    |
+| BFF       | GET    | `/bff/users`                         | JWT                    |
+| BFF       | POST   | `/bff/users`                         | JWT · Admin            |
+| BFF       | DELETE | `/bff/users/{id}`                    | JWT · Admin            |
+| BFF       | PATCH  | `/bff/users/{id}/role`               | JWT · Admin            |
+| BFF       | GET    | `/bff/sessions/my`                   | JWT                    |
+| BFF       | GET    | `/bff/sessions`                      | JWT · Admin            |
+| BFF       | PATCH  | `/bff/sessions/{id}/revoke`          | JWT                    |
+| BFF       | DELETE | `/bff/sessions/my`                   | JWT                    |
+| BFF       | DELETE | `/bff/admin/users/{userId}/sessions` | JWT · Admin            |
+| BFF       | GET    | `/bff/health`                        | No                     |
+| Gateway   | GET    | `/health`                            | No                     |
+| Functions | GET    | `/api/functions/users`               | No (demo)              |
+| API       | POST   | `/api/assistant`                     | JWT · SSE              |
+| BFF       | POST   | `/bff/assistant`                     | JWT · SSE pass-through |
 
 ---
 
@@ -1086,10 +1105,10 @@ Si está vacía (corriendo en local sin Postgres) el API cae a EF Core InMemory 
 
 La base de datos se rellena automáticamente al arrancar:
 
-| Email | Contraseña | Rol | Permisos |
-|-------|-----------|-----|---------|
-| `admin@demo.com` | `Admin123!` | Admin | read, write, delete, roles:manage |
-| `user@demo.com` | `User123!` | Viewer | read |
+| Email            | Contraseña  | Rol    | Permisos                          |
+| ---------------- | ----------- | ------ | --------------------------------- |
+| `admin@demo.com` | `Admin123!` | Admin  | read, write, delete, roles:manage |
+| `user@demo.com`  | `User123!`  | Viewer | read                              |
 
 Las contraseñas se guardan hasheadas con BCrypt.
 
@@ -1097,23 +1116,23 @@ Las contraseñas se guardan hasheadas con BCrypt.
 
 ## 15. Decisiones de diseño
 
-| Decisión | Por qué |
-|----------|---------|
-| **Patrón BFF** | React nunca habla directamente con el API. El BFF es el contrato cliente-servidor; el API puede evolucionar sin romper el frontend |
-| **JWT emitido por API, validado por BFF** | El API es la única fuente de verdad de auth. El BFF solo necesita el secreto compartido, no el almacén de usuarios |
-| **Postgres en contenedor con fallback InMemory** | El stack containerizado demuestra una BD real (migraciones EF, seed, ACID). Si la connection string está vacía (e.g. tests de integración o demo sin Docker), EF cae a InMemory automáticamente. Lo mejor de ambos mundos: fidelidad de producción + cero fricción para arrancar |
-| **DDD + MediatR + CQRS** | Separa la lógica de negocio de la infraestructura. Los controllers son delgados; los handlers son testeables |
-| **Red Docker `demo-network` única** | Todos los servicios comparten una red bridge user-defined → service discovery por nombre (`http://api:8080`, `Host=postgres`). Simplifica el modelo mental y migra 1:1 a Kubernetes Services. En producción de verdad conviene separar redes por dominio de confianza |
-| **YARP Gateway en Docker/K8s** | Punto de entrada único. Permite añadir rate limiting, circuit breaker y auth centralizada sin tocar los servicios |
-| **MassTransit como abstracción** | El mismo código de consumers funciona con RabbitMQ local o Azure Service Bus en Azure, cambiando solo la configuración |
-| **Vite proxy** | El frontend usa `/bff/...` relativo. Vite proxea en dev, nginx en Docker. Nunca hay URLs hardcodeadas |
-| **Kustomize (no Helm)** | Para un proyecto demo, Kustomize es más legible y directo. Helm tiene más sentido cuando el chart se reutiliza en múltiples deployments |
-| **Refresh tokens stateful** | Permiten revocar sesiones individuales y mantener audit trail. El access token dura 15 min; el refresh token 30 días con rotación en cada uso. [ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md) |
-| **Outbox Pattern + Idempotency** | Los comandos mutantes publican eventos vía `MassTransit.EntityFrameworkCore` Outbox en la misma transacción que el agregado — cero pérdida si el bus cae. El header `X-Idempotency-Key` se gestiona en un middleware único que cachea la respuesta original 24h para deduplicar reintentos sin tocar los handlers. [ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md) |
-| **SignalR directo al API (no vía BFF)** | El BFF es un proxy REST. Una conexión WebSocket persistente no encaja en ese patrón. El access token JWT es suficiente para autenticar el hub. |
-| **SK + SSE + IKernelFactory** | Semantic Kernel orquesta los tool calls; SSE (Server-Sent Events) envía tokens al cliente en streaming sin WebSocket. `IKernelFactory` desacopla el provider LLM (Ollama/OpenAI/Azure) de la lógica del agente. El BFF hace pass-through del stream en lugar de deserializar, preservando la naturaleza de tiempo real del protocolo. [ADR-010](docs/adr/ADR-010-semantic-kernel-agent-sse.md) |
-| **OpenTelemetry SDK nativo** | OTel es el estándar de la industria. Exportar a OTLP permite cambiar el backend (Jaeger, Zipkin, DataDog...) sin tocar el código |
-| **Serilog con sink OTel** | Serilog es más ergonómico que `ILogger` para logging estructurado y es compatible con OTel para la correlación de trazas |
+| Decisión                                         | Por qué                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Patrón BFF**                                   | React nunca habla directamente con el API. El BFF es el contrato cliente-servidor; el API puede evolucionar sin romper el frontend                                                                                                                                                                                                                                                             |
+| **JWT emitido por API, validado por BFF**        | El API es la única fuente de verdad de auth. El BFF solo necesita el secreto compartido, no el almacén de usuarios                                                                                                                                                                                                                                                                             |
+| **Postgres en contenedor con fallback InMemory** | El stack containerizado demuestra una BD real (migraciones EF, seed, ACID). Si la connection string está vacía (e.g. tests de integración o demo sin Docker), EF cae a InMemory automáticamente. Lo mejor de ambos mundos: fidelidad de producción + cero fricción para arrancar                                                                                                               |
+| **DDD + MediatR + CQRS**                         | Separa la lógica de negocio de la infraestructura. Los controllers son delgados; los handlers son testeables                                                                                                                                                                                                                                                                                   |
+| **Red Docker `demo-network` única**              | Todos los servicios comparten una red bridge user-defined → service discovery por nombre (`http://api:8080`, `Host=postgres`). Simplifica el modelo mental y migra 1:1 a Kubernetes Services. En producción de verdad conviene separar redes por dominio de confianza                                                                                                                          |
+| **YARP Gateway en Docker/K8s**                   | Punto de entrada único. Permite añadir rate limiting, circuit breaker y auth centralizada sin tocar los servicios                                                                                                                                                                                                                                                                              |
+| **MassTransit como abstracción**                 | El mismo código de consumers funciona con RabbitMQ local o Azure Service Bus en Azure, cambiando solo la configuración                                                                                                                                                                                                                                                                         |
+| **Vite proxy**                                   | El frontend usa `/bff/...` relativo. Vite proxea en dev, nginx en Docker. Nunca hay URLs hardcodeadas                                                                                                                                                                                                                                                                                          |
+| **Kustomize (no Helm)**                          | Para un proyecto demo, Kustomize es más legible y directo. Helm tiene más sentido cuando el chart se reutiliza en múltiples deployments                                                                                                                                                                                                                                                        |
+| **Refresh tokens stateful**                      | Permiten revocar sesiones individuales y mantener audit trail. El access token dura 15 min; el refresh token 30 días con rotación en cada uso. [ADR-008](docs/adr/ADR-008-stateful-refresh-tokens-signalr.md)                                                                                                                                                                                  |
+| **Outbox Pattern + Idempotency**                 | Los comandos mutantes publican eventos vía `MassTransit.EntityFrameworkCore` Outbox en la misma transacción que el agregado — cero pérdida si el bus cae. El header `X-Idempotency-Key` se gestiona en un middleware único que cachea la respuesta original 24h para deduplicar reintentos sin tocar los handlers. [ADR-009](docs/adr/ADR-009-outbox-pattern-idempotency.md)                   |
+| **SignalR directo al API (no vía BFF)**          | El BFF es un proxy REST. Una conexión WebSocket persistente no encaja en ese patrón. El access token JWT es suficiente para autenticar el hub.                                                                                                                                                                                                                                                 |
+| **SK + SSE + IKernelFactory**                    | Semantic Kernel orquesta los tool calls; SSE (Server-Sent Events) envía tokens al cliente en streaming sin WebSocket. `IKernelFactory` desacopla el provider LLM (Ollama/OpenAI/Azure) de la lógica del agente. El BFF hace pass-through del stream en lugar de deserializar, preservando la naturaleza de tiempo real del protocolo. [ADR-010](docs/adr/ADR-010-semantic-kernel-agent-sse.md) |
+| **OpenTelemetry SDK nativo**                     | OTel es el estándar de la industria. Exportar a OTLP permite cambiar el backend (Jaeger, Zipkin, DataDog...) sin tocar el código                                                                                                                                                                                                                                                               |
+| **Serilog con sink OTel**                        | Serilog es más ergonómico que `ILogger` para logging estructurado y es compatible con OTel para la correlación de trazas                                                                                                                                                                                                                                                                       |
 
 ---
 
@@ -1143,7 +1162,7 @@ El uso de IA no es decorativo — es parte central del showcase. El documento [`
 - Dónde el AI acertó en el primer intento y dónde necesitó corrección.
 - Las reglas de cuándo confiar, cuándo revisar y cuándo descartar el output.
 
-| Herramienta | Configuración |
-|-------------|--------------|
-| **Claude Code** | [`CLAUDE.md`](CLAUDE.md) — arquitectura del sistema, comandos, skill `/infra` |
+| Herramienta        | Configuración                                                                    |
+| ------------------ | -------------------------------------------------------------------------------- |
+| **Claude Code**    | [`CLAUDE.md`](CLAUDE.md) — arquitectura del sistema, comandos, skill `/infra`    |
 | **GitHub Copilot** | [`.vscode/settings.json`](.vscode/settings.json) — apunta al estándar de commits |

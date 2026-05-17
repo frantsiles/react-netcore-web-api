@@ -31,8 +31,15 @@ public class CatalogDbContext(
             e.Property(x => x.TenantId).IsRequired();
             e.HasIndex(x => new { x.TenantId, x.SKU }).IsUnique();
 
+            e.Navigation(x => x.UnitOfMeasure).IsRequired();
             e.OwnsOne(x => x.UnitOfMeasure, uom =>
-                uom.Property(u => u.Code).HasColumnName("UnitOfMeasure").IsRequired().HasMaxLength(10));
+            {
+                uom.WithOwner();
+                uom.Property(u => u.Code)
+                    .HasColumnName("UnitOfMeasure")
+                    .IsRequired()
+                    .HasMaxLength(10);
+            });
         });
 
         builder.Entity<PriceList>(e =>

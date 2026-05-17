@@ -26,10 +26,11 @@ namespace Api.WebApi.Infrastructure;
 
 public static class DemoDataSeeder
 {
-    private static readonly Guid TechSolId    = Guid.Parse("00000000-0000-0000-0000-000000000002");
-    private static readonly Guid NexoId       = Guid.Parse("00000000-0000-0000-0000-000000000003");
-    private static readonly Guid BellaModaId  = Guid.Parse("00000000-0000-0000-0000-000000000004");
+    private static readonly Guid TechSolId     = Guid.Parse("00000000-0000-0000-0000-000000000002");
+    private static readonly Guid NexoId        = Guid.Parse("00000000-0000-0000-0000-000000000003");
+    private static readonly Guid BellaModaId   = Guid.Parse("00000000-0000-0000-0000-000000000004");
     private static readonly Guid MesaGourmetId = Guid.Parse("00000000-0000-0000-0000-000000000005");
+    private static readonly Guid MercaMasId    = Guid.Parse("00000000-0000-0000-0000-000000000006");
 
     public static async Task SeedAsync(IServiceProvider provider, ILogger logger)
     {
@@ -47,8 +48,9 @@ public static class DemoDataSeeder
         await SeedNexoAsync(sp);
         await SeedBellaModaAsync(sp);
         await SeedMesaGourmetAsync(sp);
+        await SeedMercaMasAsync(sp);
 
-        logger.LogInformation("Demo seed completed: 4 companies, full ERP data loaded.");
+        logger.LogInformation("Demo seed completed: 5 companies, full ERP data loaded.");
     }
 
     // ── Tenants ───────────────────────────────────────────────────────────────
@@ -61,6 +63,7 @@ public static class DemoDataSeeder
             Tenant.CreateWithId(NexoId,       "Nexo Consulting Group",       "nexo",       "MX", "MXN", TenantPlan.Standard),
             Tenant.CreateWithId(BellaModaId,  "Bella Moda Retail S.A.",      "bellamoda",  "AR", "ARS", TenantPlan.Standard),
             Tenant.CreateWithId(MesaGourmetId,"La Mesa Gourmet S.R.L.",      "mesagourmet","ES", "EUR", TenantPlan.Free),
+            Tenant.CreateWithId(MercaMasId,   "MercaMás S.A.",               "mercamas",   "CR", "CRC", TenantPlan.Enterprise),
         };
 
         await db.Tenants.AddRangeAsync(companies);
@@ -81,6 +84,7 @@ public static class DemoDataSeeder
             (Email: "admin@nexo.mx",        Password: "Nexo123!",       First: "Admin", Last: "Nexo",       Tenant: NexoId,        Country: "MX"),
             (Email: "admin@bellamoda.ar",   Password: "BellaModa123!",  First: "Admin", Last: "BellaModa",  Tenant: BellaModaId,   Country: "AR"),
             (Email: "admin@mesagourmet.es", Password: "MesaGourmet123!",First: "Admin", Last: "MesaGourmet",Tenant: MesaGourmetId, Country: "ES"),
+            (Email: "admin@mercamas.cr",    Password: "MercaMas123!",   First: "Admin", Last: "MercaMas",   Tenant: MercaMasId,    Country: "CR"),
         };
 
         foreach (var (email, password, first, last, tenant, country) in users)
@@ -456,6 +460,161 @@ public static class DemoDataSeeder
             Contract.Create(tid, souschef.Id, "CT-MG-003", new DateOnly(2019, 3, 1),  2_400m, "EUR"),
             Contract.Create(tid, cam1.Id,     "CT-MG-004", new DateOnly(2018, 9, 1),  1_800m, "EUR"),
             Contract.Create(tid, cam2.Id,     "CT-MG-005", new DateOnly(2023, 6, 1),  1_200m, "EUR"));
+        await hr.SaveChangesAsync();
+    }
+
+    // ── MercaMás S.A. (Costa Rica) ───────────────────────────────────────────
+
+    private static async Task SeedMercaMasAsync(IServiceProvider sp)
+    {
+        var tid = MercaMasId;
+
+        // Parties — mix de mayoristas B2B y proveedores nacionales/importadores
+        var parties = sp.GetRequiredService<PartiesDbContext>();
+        var customers = new[]
+        {
+            MakeOrg("Hoteles Playa Dorada S.A.",       "CR", PartyRoleType.Customer,  8_000_000m, "CRC", 30, tid),
+            MakeOrg("Corporación Universitaria CR",     "CR", PartyRoleType.Customer,  5_000_000m, "CRC", 30, tid),
+            MakeOrg("Municipalidad de San José",        "CR", PartyRoleType.Customer, 15_000_000m, "CRC", 60, tid),
+            MakeOrg("Suplidora Escolar Nacional S.A.", "CR", PartyRoleType.Customer,  6_000_000m, "CRC", 30, tid),
+            MakeOrg("Club de Mayoreo del Pacífico",    "CR", PartyRoleType.Customer,  4_000_000m, "CRC", 15, tid),
+        };
+        var suppliers = new[]
+        {
+            MakeOrg("Distribuidora Nacional de Alimentos S.A.", "CR", PartyRoleType.Supplier, 0m, "CRC", 15, tid),
+            MakeOrg("Importadora de Electrodomésticos CR",      "CR", PartyRoleType.Supplier, 0m, "CRC", 30, tid),
+            MakeOrg("Textiles y Uniformes Import S.A.",         "CR", PartyRoleType.Supplier, 0m, "CRC", 30, tid),
+            MakeOrg("Juguetería y Temporada Import CR",         "CR", PartyRoleType.Supplier, 0m, "CRC", 45, tid),
+            MakeOrg("Limpieza y Cuidado del Hogar S.A.",        "CR", PartyRoleType.Supplier, 0m, "CRC", 15, tid),
+            MakeOrg("Café Tarrazú Exportaciones",               "CR", PartyRoleType.Supplier, 0m, "CRC", 15, tid),
+        };
+        await parties.Parties.AddRangeAsync([..customers, ..suppliers]);
+        await parties.SaveChangesAsync();
+
+        // Catalog — artículos varios al estilo Walmart/Más x Menos
+        var catalog = sp.GetRequiredService<CatalogDbContext>();
+        var items = new[]
+        {
+            // Alimentación básica (canasta)
+            MakeProduct("ALI-ARR-5K",  "Arroz grano largo 5 kg",           "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 50m),
+            MakeProduct("ALI-FRJ-1K",  "Frijoles negros 1 kg",             "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 50m),
+            MakeProduct("ALI-ACE-1L",  "Aceite vegetal 1 L",               "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 40m),
+            MakeProduct("ALI-CAF-500", "Café molido Tarrazú 500 g",        "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 30m),
+            MakeProduct("ALI-SUC-SAL", "Salsa Lizano 350 ml (icónica CR)", "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 40m),
+            MakeProduct("ALI-LEY-1L",  "Leche UHT 1 L",                   "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 60m),
+
+            // Electrodomésticos y tecnología
+            MakeProduct("ELE-TV-43",   "Televisor LED 43\"",               "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 5m),
+            MakeProduct("ELE-LIC-10",  "Licuadora 10 velocidades",         "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 8m),
+            MakeProduct("ELE-MIC-20L", "Microondas 20 L digital",          "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 5m),
+            MakeProduct("ELE-VEN-PED", "Ventilador de pedestal 3 velocidades","CR","CRC",UnitOfMeasure.Each,   tid, trackInventory: true, reorderPoint: 8m),
+
+            // Limpieza del hogar
+            MakeProduct("LIM-DET-3L",  "Detergente líquido 3 L",          "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 40m),
+            MakeProduct("LIM-PAP-12",  "Papel higiénico 12 rollos",        "CR", "CRC", UnitOfMeasure.Box,     tid, trackInventory: true, reorderPoint: 30m),
+            MakeProduct("LIM-DES-1L",  "Desinfectante multiusos 1 L",      "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 30m),
+            MakeProduct("LIM-ESC-JUI", "Escoba y recogedor plástico",      "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 15m),
+
+            // Ropa y uniformes (muy demandado en CR para inicio de clases)
+            MakeProduct("ROP-UNI-ESC", "Uniforme escolar completo",        "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 20m),
+            MakeProduct("ROP-DEP-SET", "Set deportivo adulto",             "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 15m),
+            MakeProduct("ROP-CAL-DEP", "Calzado deportivo",                "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 10m),
+
+            // Decoración y artículos de temporada
+            MakeProduct("DEC-NAV-SET", "Set de decoración navideña",       "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 20m),
+            MakeProduct("DEC-ART-HOG", "Adornos y figuras decorativas",    "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 15m),
+            MakeProduct("DEC-LUC-LED", "Luces LED decorativas 5 m",        "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 20m),
+
+            // Juguetes y entretenimiento
+            MakeProduct("JUG-SET-BAS", "Set de juguetes surtidos (caja)",  "CR", "CRC", UnitOfMeasure.Box,     tid, trackInventory: true, reorderPoint: 10m),
+            MakeProduct("JUG-BIC-NIN", "Bicicleta para niño rodada 20",    "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 5m),
+
+            // Jardín y ferretería básica
+            MakeProduct("JAR-MAN-GUA", "Manguera de jardín 15 m",          "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 8m),
+            MakeProduct("JAR-FER-KIT", "Kit herramientas básico jardín",   "CR", "CRC", UnitOfMeasure.Each,    tid, trackInventory: true, reorderPoint: 8m),
+        };
+        await catalog.CatalogItems.AddRangeAsync(items);
+        await catalog.SaveChangesAsync();
+
+        // Almacenes — centro de distribución + bodega regional
+        var inventory = sp.GetRequiredService<InventoryDbContext>();
+        var whSJ  = Warehouse.Create("CD-SJ",    "Centro de Distribución San José", "Ruta 27, La Uruca, San José");
+        whSJ.TenantId = tid;
+        var whCart = Warehouse.Create("BOD-CART", "Bodega Regional Cartago",        "Zona Industrial Cartago");
+        whCart.TenantId = tid;
+        await inventory.Warehouses.AddRangeAsync(whSJ, whCart);
+        await inventory.SaveChangesAsync();
+
+        foreach (var item in items)
+        {
+            var invSJ   = MakeInventoryItem(item.Id, whSJ.Id,   item.SKU, tid);
+            invSJ.Receive(80, "SEED-INITIAL");
+            var invCart = MakeInventoryItem(item.Id, whCart.Id,  item.SKU, tid);
+            invCart.Receive(40, "SEED-INITIAL");
+            await inventory.InventoryItems.AddRangeAsync(invSJ, invCart);
+        }
+        await inventory.SaveChangesAsync();
+
+        // Impuestos — CR tiene IVA del 13% (Ley 9635)
+        var tax = sp.GetRequiredService<TaxDbContext>();
+        await tax.TaxRates.AddRangeAsync(
+            TaxRate.Create(tid, "IVA-13",  "IVA General 13%",              13m, TaxApplicability.Both,    "Tipo general Costa Rica (Ley 9635)"),
+            TaxRate.Create(tid, "IVA-4",   "IVA Servicios Básicos 4%",      4m, TaxApplicability.Both,    "Electricidad, agua, telefonía residencial"),
+            TaxRate.Create(tid, "IVA-2",   "IVA Canasta Básica 2%",         2m, TaxApplicability.Both,    "Productos de canasta básica alimentaria"),
+            TaxRate.Create(tid, "IVA-0",   "Exento 0%",                     0m, TaxApplicability.Both,    "Medicamentos, libros, exportaciones"),
+            TaxRate.Create(tid, "IMPO-15", "Impuesto Selectivo Consumo 15%",15m, TaxApplicability.Purchase,"Artículos de lujo e importación"));
+        await tax.SaveChangesAsync();
+
+        // Cuentas bancarias — colones y dólares (muy común en CR)
+        var banking = sp.GetRequiredService<BankingDbContext>();
+        var ctaCRC = BankAccount.Create(tid, "15201-1-001001234-0", "Banco Nacional de Costa Rica", "CRC",
+            iban: "CR21015201001001234567", swift: "BNCRCRSJ");
+        ctaCRC.AddTransaction(DateTime.UtcNow.AddDays(-60), "Saldo inicial",                  80_000_000m, BankTransactionType.Credit, "OPEN-001");
+        ctaCRC.AddTransaction(DateTime.UtcNow.AddDays(-15), "Ventas semana 18 — TPV",          6_250_000m, BankTransactionType.Credit, "TPV-W18");
+        ctaCRC.AddTransaction(DateTime.UtcNow.AddDays(-14), "Pago Dist. Nacional Alimentos",   3_800_000m, BankTransactionType.Debit,  "PAG-001");
+        ctaCRC.AddTransaction(DateTime.UtcNow.AddDays(-7),  "Ventas semana 19 — TPV",          7_100_000m, BankTransactionType.Credit, "TPV-W19");
+        ctaCRC.AddTransaction(DateTime.UtcNow.AddDays(-6),  "Nómina quincenal",                4_200_000m, BankTransactionType.Debit,  "NOM-Q1");
+        ctaCRC.AddTransaction(DateTime.UtcNow.AddDays(-3),  "Pago Importadora Electrodomésticos", 5_500_000m, BankTransactionType.Debit, "PAG-002");
+
+        var ctaUSD = BankAccount.Create(tid, "15201-1-002001234-0", "BAC San José", "USD",
+            iban: "CR05015201002001234567", swift: "BSCHCRSJ");
+        ctaUSD.AddTransaction(DateTime.UtcNow.AddDays(-45), "Reserva dólares — importaciones", 40_000m, BankTransactionType.Credit, "OPEN-002");
+        ctaUSD.AddTransaction(DateTime.UtcNow.AddDays(-10), "Pago importación juguetes",       12_500m, BankTransactionType.Debit,  "IMP-001");
+
+        await banking.BankAccounts.AddRangeAsync(ctaCRC, ctaUSD);
+        await banking.SaveChangesAsync();
+
+        // RRHH — estructura típica de supermercado / tienda de descuento
+        var hr = sp.GetRequiredService<HrDbContext>();
+        var deptGerencia  = Department.Create(tid, "GER",   "Gerencia General");
+        var deptVentas    = Department.Create(tid, "VEN",   "Ventas y Atención al Cliente", costCenter: "CC-VEN");
+        var deptBodega    = Department.Create(tid, "BOD",   "Bodega y Logística",           costCenter: "CC-BOD");
+        var deptCompras   = Department.Create(tid, "COMP",  "Compras y Proveeduría",        costCenter: "CC-COMP");
+        var deptAdmin     = Department.Create(tid, "ADM",   "Administración y Finanzas");
+        await hr.Departments.AddRangeAsync(deptGerencia, deptVentas, deptBodega, deptCompras, deptAdmin);
+        await hr.SaveChangesAsync();
+
+        var gerente    = Employee.Hire(tid, "MM-001", "Mauricio",  "Quesada",     "mquesada@mercamas.cr",    deptGerencia.Id, "Gerente General",              EmploymentType.FullTime, new DateOnly(2015, 3, 1));
+        var jVentas    = Employee.Hire(tid, "MM-002", "Karina",    "Solano",      "ksolano@mercamas.cr",     deptVentas.Id,   "Jefe de Ventas",               EmploymentType.FullTime, new DateOnly(2017, 8, 1),  managerEmployeeId: gerente.EmployeeNumber);
+        var cajera1    = Employee.Hire(tid, "MM-003", "Yuliana",   "Montero",     "ymontero@mercamas.cr",    deptVentas.Id,   "Cajera Senior",                EmploymentType.FullTime, new DateOnly(2019, 1, 15), managerEmployeeId: jVentas.EmployeeNumber);
+        var cajera2    = Employee.Hire(tid, "MM-004", "Daniela",   "Corrales",    "dcorrales@mercamas.cr",   deptVentas.Id,   "Cajera",                       EmploymentType.PartTime, new DateOnly(2022, 6, 1),  managerEmployeeId: jVentas.EmployeeNumber);
+        var bodeguero  = Employee.Hire(tid, "MM-005", "Josué",     "Araya",       "jaraya@mercamas.cr",      deptBodega.Id,   "Jefe de Bodega",               EmploymentType.FullTime, new DateOnly(2018, 4, 1));
+        var repo1      = Employee.Hire(tid, "MM-006", "Bryan",     "Vargas",      "bvargas@mercamas.cr",     deptBodega.Id,   "Repositor",                    EmploymentType.FullTime, new DateOnly(2021, 9, 1),  managerEmployeeId: bodeguero.EmployeeNumber);
+        var jCompras   = Employee.Hire(tid, "MM-007", "Natalia",   "Jiménez",     "njimenez@mercamas.cr",    deptCompras.Id,  "Encargada de Compras",         EmploymentType.FullTime, new DateOnly(2016, 7, 1),  managerEmployeeId: gerente.EmployeeNumber);
+        var contadora  = Employee.Hire(tid, "MM-008", "Patricia",  "Umaña",       "pumana@mercamas.cr",      deptAdmin.Id,    "Contadora",                    EmploymentType.FullTime, new DateOnly(2015, 3, 1));
+        await hr.Employees.AddRangeAsync(gerente, jVentas, cajera1, cajera2, bodeguero, repo1, jCompras, contadora);
+        await hr.SaveChangesAsync();
+
+        // Contratos — salarios en CRC (mínimos legales CR ~380k, promedio mercado 600k–1.8M)
+        await hr.Contracts.AddRangeAsync(
+            Contract.Create(tid, gerente.Id,   "CT-MM-001", new DateOnly(2015, 3, 1),  1_800_000m, "CRC", notes: "Salario gerencial incluye bonos trimestrales"),
+            Contract.Create(tid, jVentas.Id,   "CT-MM-002", new DateOnly(2017, 8, 1),  1_100_000m, "CRC"),
+            Contract.Create(tid, cajera1.Id,   "CT-MM-003", new DateOnly(2019, 1, 15),   650_000m, "CRC"),
+            Contract.Create(tid, cajera2.Id,   "CT-MM-004", new DateOnly(2022, 6, 1),    420_000m, "CRC", notes: "Medio tiempo — 20h semanales"),
+            Contract.Create(tid, bodeguero.Id, "CT-MM-005", new DateOnly(2018, 4, 1),    850_000m, "CRC"),
+            Contract.Create(tid, repo1.Id,     "CT-MM-006", new DateOnly(2021, 9, 1),    580_000m, "CRC"),
+            Contract.Create(tid, jCompras.Id,  "CT-MM-007", new DateOnly(2016, 7, 1),  1_050_000m, "CRC"),
+            Contract.Create(tid, contadora.Id, "CT-MM-008", new DateOnly(2015, 3, 1),  1_200_000m, "CRC"));
         await hr.SaveChangesAsync();
     }
 

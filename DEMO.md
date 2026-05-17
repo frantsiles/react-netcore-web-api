@@ -153,6 +153,46 @@ Four independent fictional companies are pre-loaded. Each has its own customers,
 
 ---
 
+### 5. MercaMás S.A.
+**General merchandise retailer — Costa Rica (CRC) — Enterprise plan**
+
+> A Costa Rican big-box retail chain (think Walmart / Más x Menos) selling groceries, electronics, home goods, clothing, seasonal decorations, and toys. High transaction volume, dual-currency operations (CRC + USD), and a wide supplier base covering both local producers and importers.
+
+| | |
+|---|---|
+| **Country** | Costa Rica 🇨🇷 |
+| **Currency** | CRC (Colones) |
+| **Industry** | General Merchandise / Retail |
+| **Modules active** | Sales, Purchasing, Inventory (2 warehouses), Banking, Tax, HR |
+
+**Login:**
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@mercamas.cr` | `MercaMas123!` | Admin |
+
+**What to explore:**
+- 5 wholesale/institutional clients: hotels, universities, municipalities
+- 6 suppliers: local food distributors, appliance importers, textile/uniform suppliers, toy importers, cleaning product companies, and the iconic Café Tarrazú exporter
+- **24 catalog items** across 6 departments:
+  - Groceries: Arroz, frijoles negros, aceite, Café Tarrazú, Salsa Lizano, leche UHT
+  - Electronics: 43" TV, blender, microwave, floor fan
+  - Cleaning: detergent, toilet paper, disinfectant, broom set
+  - Clothing: school uniforms (very CR!), sportswear, athletic shoes
+  - Seasonal decor: Christmas sets, decorative figures, LED lights
+  - Toys & garden: bike, toy sets, garden hose, tool kit
+- 2 warehouses: Centro de Distribución San José + Bodega Regional Cartago (80+40 units per item)
+- **Costa Rican IVA tax structure** (Ley 9635):
+  - IVA General 13% (standard)
+  - IVA Servicios Básicos 4%
+  - Canasta Básica 2%
+  - Exento 0% (medicine, books)
+  - Impuesto Selectivo Consumo 15% (luxury imports)
+- 2 bank accounts: Banco Nacional (CRC with IBAN/SWIFT) + BAC San José (USD)
+- 8 employees: GM, sales manager, 2 cashiers, warehouse chief, shelf stocker, purchasing manager, accountant
+
+---
+
 ## Default Admin Account
 
 A global demo account is always available regardless of tenant:
@@ -161,6 +201,8 @@ A global demo account is always available regardless of tenant:
 |---|---|---|
 | `admin@demo.com` | `Admin123!` | Demo Company (default) |
 | `user@demo.com` | `User123!` | Demo Company (read-only) |
+
+> Switching between companies is as simple as logging out and back in with a different account. Each login session is fully isolated — data from one company is never visible to another.
 
 ---
 

@@ -15,6 +15,7 @@ public class BankingDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("banking");
 
         builder.Entity<BankAccount>(e =>
         {
@@ -28,7 +29,7 @@ public class BankingDbContext(
             e.Property(a => a.Swift).HasMaxLength(11);
             e.HasIndex("TenantId", nameof(BankAccount.AccountNumber)).IsUnique();
 
-            e.OwnsMany<BankTransaction>("_transactions", t =>
+            e.OwnsMany(a => a.Transactions, t =>
             {
                 t.ToTable("bank_transactions");
                 t.HasKey(x => x.Id);
@@ -38,8 +39,6 @@ public class BankingDbContext(
                 t.Property(x => x.ReferenceNumber).HasMaxLength(100);
                 t.WithOwner().HasForeignKey("BankAccountId");
             });
-
-            e.Navigation("_transactions").UsePropertyAccessMode(PropertyAccessMode.Field);
             ApplyTenantFilter<BankAccount>(builder);
         });
     }

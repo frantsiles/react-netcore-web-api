@@ -13,8 +13,14 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<HrDbContext>(opt =>
-            opt.UseInMemoryDatabase("HrDb"));
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        services.AddDbContext<HrDbContext>(options =>
+        {
+            if (string.IsNullOrEmpty(connectionString))
+                options.UseInMemoryDatabase("HrDb");
+            else
+                options.UseNpgsql(connectionString);
+        });
 
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();

@@ -3,6 +3,7 @@
 Este módulo implementa el agregado `Invoice` y la lógica básica para convertir `SalesOrder` → `Invoice`.
 
 Estructura inicial:
+
 - Invoicing.Domain: entidades `Invoice`, `InvoiceLine`.
 - Invoicing.Application: comando `ConvertSalesOrderToInvoiceCommand` y handler esqueleto.
 - Invoicing.WebApi: `InvoicesController` con endpoint POST `/api/invoicing/convert`.

@@ -17,6 +17,7 @@ public class InventoryDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("inventory");
 
         builder.Entity<Warehouse>(e =>
         {

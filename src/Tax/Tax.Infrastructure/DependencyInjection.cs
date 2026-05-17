@@ -13,8 +13,14 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<TaxDbContext>(opt =>
-            opt.UseInMemoryDatabase("TaxDb"));
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        services.AddDbContext<TaxDbContext>(options =>
+        {
+            if (string.IsNullOrEmpty(connectionString))
+                options.UseInMemoryDatabase("TaxDb");
+            else
+                options.UseNpgsql(connectionString);
+        });
 
         services.AddScoped<ITaxRateRepository, TaxRateRepository>();
         return services;

@@ -19,6 +19,7 @@ public class HrDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("hr");
 
         builder.Entity<Employee>(e =>
         {

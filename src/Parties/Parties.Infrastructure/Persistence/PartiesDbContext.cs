@@ -15,6 +15,7 @@ public class PartiesDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("parties");
 
         builder.Entity<Party>(entity =>
         {

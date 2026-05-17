@@ -17,6 +17,7 @@ public class SalesDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("sales");
 
         builder.Entity<Quote>(e =>
         {

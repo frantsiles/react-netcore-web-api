@@ -15,6 +15,7 @@ public class TaxDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("tax");
 
         builder.Entity<TaxRate>(e =>
         {

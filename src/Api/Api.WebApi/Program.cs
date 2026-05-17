@@ -179,6 +179,10 @@ using (var scope = app.Services.CreateScope())
     await DatabaseInitializer.InitializeAsync(db, config, logger);
 }
 
+await Api.WebApi.Infrastructure.ModuleMigrator.MigrateAllAsync(
+    app.Services,
+    app.Services.GetRequiredService<ILogger<Program>>());
+
 await ControlPlane.Infrastructure.DependencyInjection.SeedDefaultTenantAsync(app.Services);
 
 if (app.Environment.IsDevelopment())

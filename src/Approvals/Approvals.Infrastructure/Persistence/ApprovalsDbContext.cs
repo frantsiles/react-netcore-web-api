@@ -17,6 +17,7 @@ public class ApprovalsDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("approvals");
 
         builder.Entity<ApprovalWorkflow>(e =>
         {
@@ -26,14 +27,13 @@ public class ApprovalsDbContext(
             e.Property(w => w.Name).IsRequired().HasMaxLength(200);
             e.Property(w => w.AmountThreshold).HasPrecision(18, 2);
 
-            e.OwnsMany<WorkflowApprover>("_approvers", a =>
+            e.OwnsMany(w => w.Approvers, a =>
             {
                 a.ToTable("appr_workflow_approvers");
                 a.HasKey(x => x.Id);
                 a.Property(x => x.UserId);
                 a.WithOwner().HasForeignKey("WorkflowId");
             });
-            e.Navigation("_approvers").UsePropertyAccessMode(PropertyAccessMode.Field);
             ApplyTenantFilter<ApprovalWorkflow>(builder);
         });
 

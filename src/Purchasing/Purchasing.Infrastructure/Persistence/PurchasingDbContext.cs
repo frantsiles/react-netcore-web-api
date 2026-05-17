@@ -15,6 +15,7 @@ public class PurchasingDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("purchasing");
 
         builder.Entity<PurchaseOrder>(e =>
         {
@@ -37,7 +38,7 @@ public class PurchasingDbContext(
                 m.Property(x => x.CurrencyCode).HasColumnName("total_currency").HasMaxLength(3);
             });
 
-            e.OwnsMany<PurchaseOrderLine>("_lines", l =>
+            e.OwnsMany(p => p.Lines, l =>
             {
                 l.ToTable("purchasing_po_lines");
                 l.HasKey(x => x.Id);
@@ -56,8 +57,6 @@ public class PurchasingDbContext(
                     m.Property(v => v.CurrencyCode).HasColumnName("line_total_currency").HasMaxLength(3);
                 });
             });
-
-            e.Navigation("_lines").UsePropertyAccessMode(PropertyAccessMode.Field);
             ApplyTenantFilter<PurchaseOrder>(builder);
         });
     }

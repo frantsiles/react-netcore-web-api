@@ -17,6 +17,7 @@ public class AccountingDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("accounting");
 
         builder.Entity<Account>(e =>
         {
@@ -40,7 +41,7 @@ public class AccountingDbContext(
             e.Property(j => j.Status).HasConversion<string>().HasMaxLength(20);
             e.HasIndex("TenantId", nameof(JournalEntry.EntryNumber)).IsUnique();
 
-            e.OwnsMany<JournalEntryLine>("_lines", l =>
+            e.OwnsMany(j => j.Lines, l =>
             {
                 l.ToTable("acc_journal_entry_lines");
                 l.HasKey(x => x.Id);
@@ -49,8 +50,6 @@ public class AccountingDbContext(
                 l.Property(x => x.Side).HasConversion<string>().HasMaxLength(10);
                 l.WithOwner().HasForeignKey("JournalEntryId");
             });
-
-            e.Navigation("_lines").UsePropertyAccessMode(PropertyAccessMode.Field);
             ApplyTenantFilter<JournalEntry>(builder);
         });
     }

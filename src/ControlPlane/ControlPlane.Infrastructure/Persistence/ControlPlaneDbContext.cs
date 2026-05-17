@@ -11,6 +11,7 @@ public class ControlPlaneDbContext(DbContextOptions<ControlPlaneDbContext> optio
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDefaultSchema("controlplane");
 
         builder.Entity<Tenant>(e =>
         {

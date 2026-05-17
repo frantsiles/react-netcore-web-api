@@ -13,8 +13,14 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<ApprovalsDbContext>(opt =>
-            opt.UseInMemoryDatabase("ApprovalsDb"));
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        services.AddDbContext<ApprovalsDbContext>(options =>
+        {
+            if (string.IsNullOrEmpty(connectionString))
+                options.UseInMemoryDatabase("ApprovalsDb");
+            else
+                options.UseNpgsql(connectionString);
+        });
 
         services.AddScoped<IApprovalWorkflowRepository, ApprovalWorkflowRepository>();
         services.AddScoped<IApprovalRequestRepository, ApprovalRequestRepository>();

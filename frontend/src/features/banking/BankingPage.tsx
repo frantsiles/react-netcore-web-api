@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/table";
 
 import { AccountPicker } from "@/components/pickers/AccountPicker";
+import { JournalEntryPicker } from "@/components/pickers/JournalEntryPicker";
 import {
   bankingService,
   type BankAccountDto,
@@ -105,6 +106,11 @@ const txSchema = z.object({
 });
 type TxForm = z.infer<typeof txSchema>;
 
+const reconcileSchema = z.object({
+  journalEntryId: z.string().uuid("Seleccionar asiento contable"),
+});
+type ReconcileForm = z.infer<typeof reconcileSchema>;
+
 const aCol = createColumnHelper<BankAccountDto>();
 const tCol = createColumnHelper<BankTransactionDto>();
 
@@ -116,6 +122,8 @@ export function BankingPage() {
   );
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isTxOpen, setIsTxOpen] = useState(false);
+  const [isReconcileOpen, setIsReconcileOpen] = useState(false);
+  const [reconcileTxId, setReconcileTxId] = useState<string | null>(null);
   const [aSorting, setASorting] = useState<SortingState>([]);
   const [tSorting, setTSorting] = useState<SortingState>([]);
 
@@ -162,9 +170,23 @@ export function BankingPage() {
       bankingService.transactions.void(selectedAccountId!, txId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bank-transactions"] });
+      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
       toast.success("Transacción anulada");
     },
     onError: () => toast.error("Error al anular"),
+  });
+
+  const reconcileMut = useMutation({
+    mutationFn: ({ txId, journalEntryId }: { txId: string; journalEntryId: string }) =>
+      bankingService.transactions.reconcile(selectedAccountId!, txId, journalEntryId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank-transactions"] });
+      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
+      setIsReconcileOpen(false);
+      reconcileForm.reset();
+      toast.success("Transacción reconciliada");
+    },
+    onError: () => toast.error("Error al reconciliar"),
   });
 
   const accountForm = useForm<AccountForm>({
@@ -177,6 +199,9 @@ export function BankingPage() {
   const txForm = useForm<TxForm>({
     resolver: zodResolver(txSchema),
     defaultValues: { type: "Credit" },
+  });
+  const reconcileForm = useForm<ReconcileForm>({
+    resolver: zodResolver(reconcileSchema),
   });
 
   const accountCols = [
@@ -283,6 +308,15 @@ export function BankingPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setReconcileTxId(row.original.id);
+                  reconcileForm.reset();
+                  setIsReconcileOpen(true);
+                }}
+              >
+                Reconciliar
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => voidMut.mutate({ txId: row.original.id })}
@@ -454,6 +488,54 @@ export function BankingPage() {
               </Button>
               <Button type="submit" disabled={createAccMut.isPending}>
                 {createAccMut.isPending ? "Creando…" : "Crear"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reconcile Transaction Dialog */}
+      <Dialog open={isReconcileOpen} onOpenChange={(open) => {
+        setIsReconcileOpen(open);
+        if (!open) { reconcileForm.reset(); setReconcileTxId(null); }
+      }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="h-4 w-4" /> Reconciliar transacción
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={reconcileForm.handleSubmit((v) => {
+              if (reconcileTxId)
+                reconcileMut.mutate({ txId: reconcileTxId, journalEntryId: v.journalEntryId });
+            })}
+            className="space-y-4"
+          >
+            <div className="space-y-1.5">
+              <Label>Asiento contable (Posted) *</Label>
+              <JournalEntryPicker
+                value={reconcileForm.watch("journalEntryId") ?? ""}
+                onChange={(id) =>
+                  reconcileForm.setValue("journalEntryId", id, { shouldValidate: true })
+                }
+              />
+              {reconcileForm.formState.errors.journalEntryId && (
+                <p className="text-xs text-destructive">
+                  {reconcileForm.formState.errors.journalEntryId.message}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsReconcileOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={reconcileMut.isPending}>
+                {reconcileMut.isPending ? "Reconciliando…" : "Reconciliar"}
               </Button>
             </DialogFooter>
           </form>

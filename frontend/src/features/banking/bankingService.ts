@@ -35,6 +35,11 @@ export const bankingService = {
       transactionDate: string; description: string; amount: number
       type: string; referenceNumber?: string
     }) => api.post<BankTransactionDto>(`/bff/banking/accounts/${accountId}/transactions`, body).then(r => r.data),
+    reconcile: (accountId: string, txId: string, journalEntryId: string) =>
+      api.post<BankTransactionDto>(
+        `/bff/banking/accounts/${accountId}/transactions/${txId}/reconcile`,
+        { journalEntryId },
+      ).then(r => r.data),
     void: (accountId: string, txId: string) =>
       api.post<BankTransactionDto>(`/bff/banking/accounts/${accountId}/transactions/${txId}/void`).then(r => r.data),
   },

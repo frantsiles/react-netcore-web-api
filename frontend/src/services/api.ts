@@ -85,10 +85,14 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retried) {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('refreshToken');
-      sessionStorage.removeItem('user');
-      window.location.href = '/login';
+      // Don't redirect on the login request itself — let LoginPage show the error
+      const isLoginRequest = originalRequest.url?.includes('/bff/auth/login');
+      if (!isLoginRequest) {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(error);

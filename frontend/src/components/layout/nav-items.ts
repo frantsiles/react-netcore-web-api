@@ -12,6 +12,7 @@ import {
   BarChart3,
   Users,
   FileText,
+  Building2,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -58,6 +59,12 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: 'Aprobaciones', href: '/approvals', icon: CheckSquare },
       { title: 'Recursos Humanos', href: '/hr', icon: Users },
+    ],
+  },
+  {
+    label: 'Sistema',
+    items: [
+      { title: 'Tenants', href: '/admin/tenants', icon: Building2 },
     ],
   },
 ]

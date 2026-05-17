@@ -22,6 +22,7 @@ import { ReportsPage } from './features/reports/ReportsPage';
 import { ApprovalsPage } from './features/approvals/ApprovalsPage';
 import { HRPage } from './features/hr/HRPage';
 import { InvoicingPage } from './features/invoicing/InvoicingPage';
+import { TenantsAdminPage } from './features/admin/TenantsAdminPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +89,7 @@ export default function App() {
                 }
               />
               <Route path="/assistant" element={<AssistantPage />} />
+              <Route path="/admin/tenants" element={<TenantsAdminPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

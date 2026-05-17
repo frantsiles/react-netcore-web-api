@@ -92,4 +92,10 @@
     <Project Path="src/Reporting/Reporting.Infrastructure/Reporting.Infrastructure.csproj" />
     <Project Path="src/Reporting/Reporting.UnitTests/Reporting.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/HR/">
+    <Project Path="src/HR/HR.Domain/HR.Domain.csproj" />
+    <Project Path="src/HR/HR.Application/HR.Application.csproj" />
+    <Project Path="src/HR/HR.Infrastructure/HR.Infrastructure.csproj" />
+    <Project Path="src/HR/HR.UnitTests/HR.UnitTests.csproj" />
+  </Folder>
 </Solution>

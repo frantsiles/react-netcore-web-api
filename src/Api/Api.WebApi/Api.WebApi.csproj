@@ -54,6 +54,8 @@
     <ProjectReference Include="..\..\Approvals\Approvals.Infrastructure\Approvals.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Reporting\Reporting.Application\Reporting.Application.csproj" />
     <ProjectReference Include="..\..\Reporting\Reporting.Infrastructure\Reporting.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\HR\HR.Application\HR.Application.csproj" />
+    <ProjectReference Include="..\..\HR\HR.Infrastructure\HR.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -22,6 +22,8 @@ using Approvals.Application;
 using Approvals.Infrastructure;
 using Reporting.Application;
 using Reporting.Infrastructure;
+using HR.Application;
+using HR.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -97,6 +99,8 @@ builder.Services.AddApprovalsApplication();
 builder.Services.AddApprovalsInfrastructure(builder.Configuration);
 builder.Services.AddReportingApplication();
 builder.Services.AddReportingInfrastructure(builder.Configuration);
+builder.Services.AddHRApplication();
+builder.Services.AddHRInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

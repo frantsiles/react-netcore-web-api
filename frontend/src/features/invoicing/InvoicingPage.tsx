@@ -41,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import api from "@/services/api";
+import { SalesOrderPicker } from "@/components/pickers/SalesOrderPicker";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ export function InvoicingPage() {
       qc.invalidateQueries({ queryKey: ["invoices"] });
       setConvertOpen(false);
       convertForm.reset();
+      setOrderCurrency(undefined);
     },
     onError: (e: unknown) => {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Error";
@@ -195,6 +197,7 @@ export function InvoicingPage() {
   });
 
   const convertForm = useForm<ConvertForm>({ resolver: zodResolver(convertSchema) });
+  const [orderCurrency, setOrderCurrency] = useState<string | undefined>();
   const paymentForm = useForm<PaymentForm>({
     resolver: zodResolver(paymentSchema),
     defaultValues: { currencyCode: "USD", paidAt: new Date().toISOString().slice(0, 10) },
@@ -324,7 +327,10 @@ export function InvoicingPage() {
       )}
 
       {/* Convert Order to Invoice */}
-      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+      <Dialog open={convertOpen} onOpenChange={(open) => {
+        setConvertOpen(open);
+        if (!open) { convertForm.reset(); setOrderCurrency(undefined); }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -333,13 +339,19 @@ export function InvoicingPage() {
           </DialogHeader>
           <form onSubmit={convertForm.handleSubmit(d => convertMut.mutate(d))} className="space-y-4">
             <div className="space-y-2">
-              <Label>Sales Order ID</Label>
-              <Input
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                {...convertForm.register("salesOrderId")}
+              <Label>Sales Order</Label>
+              <SalesOrderPicker
+                value={convertForm.watch("salesOrderId") ?? ""}
+                onChange={(id, order) => {
+                  convertForm.setValue("salesOrderId", id, { shouldValidate: true });
+                  setOrderCurrency(order?.currencyCode);
+                }}
               />
               {convertForm.formState.errors.salesOrderId && (
                 <p className="text-xs text-destructive">{convertForm.formState.errors.salesOrderId.message}</p>
+              )}
+              {orderCurrency && (
+                <p className="text-xs text-muted-foreground">Moneda: {orderCurrency}</p>
               )}
             </div>
             <div className="space-y-2">

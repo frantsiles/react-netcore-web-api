@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
+import { AccountPicker } from '@/components/pickers/AccountPicker'
 import { bankingService, type BankAccountDto, type BankTransactionDto, type BankAccountStatus, type BankTransactionStatus } from './bankingService'
 
 const fmt = (n: number, c = 'USD') => new Intl.NumberFormat('es-MX', { style: 'currency', currency: c }).format(n)
@@ -91,6 +92,7 @@ export function BankingPage() {
   })
 
   const accountForm = useForm<AccountForm>({ resolver: zodResolver(accountSchema), defaultValues: { currencyCode: 'MXN' } })
+  const [linkedAccountingAccountId, setLinkedAccountingAccountId] = useState<string | null>(null)
   const txForm = useForm<TxForm>({ resolver: zodResolver(txSchema), defaultValues: { type: 'Credit' } })
 
   const accountCols = [
@@ -178,7 +180,7 @@ export function BankingPage() {
       <Dialog open={isAccountOpen} onOpenChange={setIsAccountOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Nueva Cuenta Bancaria</DialogTitle></DialogHeader>
-          <form onSubmit={accountForm.handleSubmit(v => createAccMut.mutate({ ...v, iban: v.iban || undefined, swift: v.swift || undefined }))} className="space-y-4">
+          <form onSubmit={accountForm.handleSubmit(v => createAccMut.mutate({ ...v, iban: v.iban || undefined, swift: v.swift || undefined, linkedAccountingAccountId: linkedAccountingAccountId || undefined }))} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Banco *</Label>
@@ -202,6 +204,10 @@ export function BankingPage() {
                 <Label>IBAN</Label>
                 <Input {...accountForm.register('iban')} placeholder="MX…" />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cuenta contable vinculada</Label>
+              <AccountPicker value={linkedAccountingAccountId} onChange={setLinkedAccountingAccountId} placeholder="(opcional) Seleccionar cuenta contable" />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsAccountOpen(false)}>Cancelar</Button>

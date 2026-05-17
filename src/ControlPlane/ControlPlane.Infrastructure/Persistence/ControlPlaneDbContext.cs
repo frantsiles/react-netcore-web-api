@@ -24,6 +24,10 @@ public class ControlPlaneDbContext(DbContextOptions<ControlPlaneDbContext> optio
             e.Property(t => t.Plan).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(t => t.Slug).IsUnique();
 
+            // Settings is a computed public view of the private _settings field.
+            // EF must not attempt to auto-configure it as a separate relationship.
+            e.Ignore(t => t.Settings);
+
             e.OwnsMany<TenantSetting>("_settings", s =>
             {
                 s.ToTable("cp_tenant_settings");

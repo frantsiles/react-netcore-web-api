@@ -1,5 +1,6 @@
 using Api.Infrastructure.Persistence;
 using Api.Infrastructure.Persistence.Seed;
+using ControlPlane.Infrastructure.Persistence;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -16,6 +17,7 @@ namespace Api.IntegrationTests.Common;
 public class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = $"TestDb-{Guid.NewGuid()}";
+    private readonly string _cpDbName = $"ControlPlane-{Guid.NewGuid()}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -23,12 +25,22 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
+            // Replace AppDbContext with a unique InMemory instance per factory
             var dbOptionsDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
             if (dbOptionsDescriptor is not null) services.Remove(dbOptionsDescriptor);
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
+
+            // Replace ControlPlaneDbContext with a unique InMemory instance per factory
+            // to avoid duplicate-key races when SeedDefaultTenantAsync runs in parallel
+            var cpOptionsDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(DbContextOptions<ControlPlaneDbContext>));
+            if (cpOptionsDescriptor is not null) services.Remove(cpOptionsDescriptor);
+
+            services.AddDbContext<ControlPlaneDbContext>(options =>
+                options.UseInMemoryDatabase(_cpDbName));
 
             RemoveMassTransitServices(services);
             services.AddMassTransitTestHarness();

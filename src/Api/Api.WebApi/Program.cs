@@ -111,7 +111,10 @@ if (!string.IsNullOrWhiteSpace(azureSignalRConnectionString))
 // Session notifier: depends on SignalR hub, registered here (not in Infrastructure)
 builder.Services.AddScoped<ISessionNotifier, SignalRSessionNotifier>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 // JWT Authentication — token issued by this API, validated by BFF
 var jwtSettings = builder.Configuration.GetSection("Jwt");

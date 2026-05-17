@@ -11,6 +11,8 @@ import { AdminSessionsPage } from './pages/AdminSessionsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { AssistantPage } from './pages/AssistantPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
+import { PartiesPage } from './features/parties/PartiesPage';
+import { CatalogPage } from './features/catalog/CatalogPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,8 +43,8 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
 
               {/* Negocio */}
-              <Route path="/parties" element={<ComingSoon module="Clientes y Proveedores" />} />
-              <Route path="/catalog" element={<ComingSoon module="Catálogo" />} />
+              <Route path="/parties" element={<PartiesPage />} />
+              <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/sales" element={<ComingSoon module="Ventas" />} />
               <Route path="/purchasing" element={<ComingSoon module="Compras" />} />
               <Route path="/inventory" element={<ComingSoon module="Inventario" />} />

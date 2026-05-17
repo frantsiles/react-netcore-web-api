@@ -2,7 +2,7 @@ import api from '@/services/api'
 
 export type BankAccountStatus = 'Active' | 'Closed' | 'Suspended'
 export type BankTransactionType = 'Debit' | 'Credit'
-export type BankTransactionStatus = 'Pending' | 'Reconciled' | 'Voided'
+export type BankTransactionStatus = 'Unreconciled' | 'Reconciled' | 'Voided'
 
 export interface BankAccountDto {
   id: string; accountNumber: string; bankName: string; currencyCode: string
@@ -40,6 +40,8 @@ export const bankingService = {
         `/bff/banking/accounts/${accountId}/transactions/${txId}/reconcile`,
         { journalEntryId },
       ).then(r => r.data),
+    unreconcile: (accountId: string, txId: string) =>
+      api.post<BankTransactionDto>(`/bff/banking/accounts/${accountId}/transactions/${txId}/unreconcile`).then(r => r.data),
     void: (accountId: string, txId: string) =>
       api.post<BankTransactionDto>(`/bff/banking/accounts/${accountId}/transactions/${txId}/void`).then(r => r.data),
   },

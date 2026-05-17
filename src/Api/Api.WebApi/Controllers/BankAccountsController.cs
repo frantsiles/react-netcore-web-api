@@ -1,6 +1,7 @@
 using Banking.Application.BankAccounts.Commands.AddBankTransaction;
 using Banking.Application.BankAccounts.Commands.CreateBankAccount;
 using Banking.Application.BankAccounts.Commands.ReconcileTransaction;
+using Banking.Application.BankAccounts.Commands.UnreconcileTransaction;
 using Banking.Application.BankAccounts.Commands.VoidTransaction;
 using Banking.Application.BankAccounts.Queries.GetBankAccountById;
 using Banking.Application.BankAccounts.Queries.GetBankTransactions;
@@ -51,6 +52,10 @@ public class BankAccountsController(ISender sender) : ControllerBase
     public async Task<IActionResult> Reconcile(
         Guid id, Guid txId, [FromBody] ReconcileRequest req, CancellationToken ct)
         => Ok(await sender.Send(new ReconcileTransactionCommand(id, txId, req.JournalEntryId), ct));
+
+    [HttpPost("{id:guid}/transactions/{txId:guid}/unreconcile")]
+    public async Task<IActionResult> Unreconcile(Guid id, Guid txId, CancellationToken ct)
+        => Ok(await sender.Send(new UnreconcileTransactionCommand(id, txId), ct));
 
     [HttpPost("{id:guid}/transactions/{txId:guid}/void")]
     public async Task<IActionResult> Void(Guid id, Guid txId, CancellationToken ct)

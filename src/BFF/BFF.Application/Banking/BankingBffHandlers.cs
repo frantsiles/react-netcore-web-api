@@ -90,6 +90,19 @@ public class ReconcileTransactionBffCommandHandler(IApiClient apiClient)
     }
 }
 
+public class UnreconcileBankTransactionBffCommandHandler(IApiClient apiClient)
+    : IRequestHandler<UnreconcileBankTransactionBffCommand, BankTransactionBffDto>
+{
+    public async Task<BankTransactionBffDto> Handle(
+        UnreconcileBankTransactionBffCommand request, CancellationToken ct)
+    {
+        var result = await apiClient.PostAsync<object, BankTransactionBffDto>(
+            $"api/banking/accounts/{request.AccountId}/transactions/{request.TransactionId}/unreconcile",
+            new { }, request.Token, ct);
+        return result!;
+    }
+}
+
 public class VoidBankTransactionBffCommandHandler(IApiClient apiClient)
     : IRequestHandler<VoidBankTransactionBffCommand, BankTransactionBffDto>
 {

@@ -75,7 +75,7 @@ const ACC_STATUS: Record<BankAccountStatus, string> = {
   Suspended: "Suspendida",
 };
 const TX_STATUS: Record<BankTransactionStatus, string> = {
-  Pending: "Pendiente",
+  Unreconciled: "Pendiente",
   Reconciled: "Reconciliada",
   Voided: "Anulada",
 };
@@ -83,7 +83,7 @@ const TX_STATUS_VARIANT: Record<
   BankTransactionStatus,
   "default" | "success" | "secondary" | "outline"
 > = {
-  Pending: "default",
+  Unreconciled: "default",
   Reconciled: "success",
   Voided: "outline",
 };
@@ -163,6 +163,17 @@ export function BankingPage() {
       toast.success("Transacción registrada");
     },
     onError: () => toast.error("Error al registrar transacción"),
+  });
+
+  const unreconcileMut = useMutation({
+    mutationFn: ({ txId }: { txId: string }) =>
+      bankingService.transactions.unreconcile(selectedAccountId!, txId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bank-transactions"] });
+      qc.invalidateQueries({ queryKey: ["bank-accounts"] });
+      toast.success("Reconciliación revertida");
+    },
+    onError: () => toast.error("Error al revertir reconciliación"),
   });
 
   const voidMut = useMutation({
@@ -299,8 +310,10 @@ export function BankingPage() {
     tCol.display({
       id: "actions",
       header: "",
-      cell: ({ row }) =>
-        row.original.status === "Pending" ? (
+      cell: ({ row }) => {
+        const { status, id } = row.original;
+        if (status === "Voided") return null;
+        return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -308,24 +321,36 @@ export function BankingPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setReconcileTxId(row.original.id);
-                  reconcileForm.reset();
-                  setIsReconcileOpen(true);
-                }}
-              >
-                Reconciliar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => voidMut.mutate({ txId: row.original.id })}
-              >
-                Anular
-              </DropdownMenuItem>
+              {status === "Unreconciled" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setReconcileTxId(id);
+                    reconcileForm.reset();
+                    setIsReconcileOpen(true);
+                  }}
+                >
+                  Reconciliar
+                </DropdownMenuItem>
+              )}
+              {status === "Reconciled" && (
+                <DropdownMenuItem
+                  onClick={() => unreconcileMut.mutate({ txId: id })}
+                >
+                  Quitar reconciliación
+                </DropdownMenuItem>
+              )}
+              {status === "Unreconciled" && (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => voidMut.mutate({ txId: id })}
+                >
+                  Anular
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : null,
+        );
+      },
     }),
   ];
 

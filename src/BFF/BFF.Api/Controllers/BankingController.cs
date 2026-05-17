@@ -44,6 +44,10 @@ public class BankingController(IMediator mediator) : ControllerBase
         => Ok(await mediator.Send(new ReconcileTransactionBffCommand(
             GetToken(), id, txId, req.JournalEntryId), ct));
 
+    [HttpPost("{id:guid}/transactions/{txId:guid}/unreconcile")]
+    public async Task<IActionResult> Unreconcile(Guid id, Guid txId, CancellationToken ct)
+        => Ok(await mediator.Send(new UnreconcileBankTransactionBffCommand(GetToken(), id, txId), ct));
+
     [HttpPost("{id:guid}/transactions/{txId:guid}/void")]
     public async Task<IActionResult> Void(Guid id, Guid txId, CancellationToken ct)
         => Ok(await mediator.Send(new VoidBankTransactionBffCommand(GetToken(), id, txId), ct));

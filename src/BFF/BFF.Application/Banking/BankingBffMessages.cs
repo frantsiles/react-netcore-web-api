@@ -38,6 +38,10 @@ public record ReconcileTransactionBffCommand(
     string Token, Guid AccountId, Guid TransactionId, Guid JournalEntryId)
     : MediatR.IRequest<BankTransactionBffDto>;
 
+public record UnreconcileBankTransactionBffCommand(
+    string Token, Guid AccountId, Guid TransactionId)
+    : MediatR.IRequest<BankTransactionBffDto>;
+
 public record VoidBankTransactionBffCommand(
     string Token, Guid AccountId, Guid TransactionId)
     : MediatR.IRequest<BankTransactionBffDto>;

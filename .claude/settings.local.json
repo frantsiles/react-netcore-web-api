@@ -90,7 +90,8 @@
       "WebFetch(domain:www.nuget.org)",
       "Bash(xargs basename -a)",
       "Bash(xargs ls -la)",
-      "Bash(git -C /workspaces/react-netcore-web-api log --oneline -5)"
+      "Bash(git -C /workspaces/react-netcore-web-api log --oneline -5)",
+      "Bash(xargs cat)"
     ],
     "additionalDirectories": [
       "/home/frantsiles/react-netcore-web-api/src/Shared"

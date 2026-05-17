@@ -42,12 +42,14 @@ public static class DataSeeder
         await context.Roles.AddRangeAsync(adminRole, viewerRole);
 
         // --- Users ---
+        var defaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
         var adminHash  = BCrypt.Net.BCrypt.HashPassword("Admin123!");
-        var adminUser  = User.Create("Admin", "Demo", "admin@demo.com", adminHash);
+        var adminUser  = User.Create("Admin", "Demo", "admin@demo.com", adminHash, defaultTenantId, "US");
         adminUser.AssignRole(adminRole);
 
         var viewerHash = BCrypt.Net.BCrypt.HashPassword("User123!");
-        var viewerUser = User.Create("Viewer", "Demo", "user@demo.com", viewerHash);
+        var viewerUser = User.Create("Viewer", "Demo", "user@demo.com", viewerHash, defaultTenantId, "US");
         viewerUser.AssignRole(viewerRole);
 
         await context.Users.AddRangeAsync(adminUser, viewerUser);

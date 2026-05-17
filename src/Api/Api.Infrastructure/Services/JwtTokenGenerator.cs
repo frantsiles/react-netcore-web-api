@@ -38,8 +38,12 @@ public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerato
             new(JwtRegisteredClaimNames.Name,  user.FullName),
             new(JwtRegisteredClaimNames.Jti,   Guid.NewGuid().ToString()),
             new("sid",          sessionId.ToString()),
-            new("tenant_id",    Tenant.ClaimsTenantContext.DefaultTenantId.ToString()),
-            new("country_code", Tenant.ClaimsTenantContext.DefaultCountryCode),
+            new("tenant_id",    user.TenantId != Guid.Empty
+                                    ? user.TenantId.ToString()
+                                    : Tenant.ClaimsTenantContext.DefaultTenantId.ToString()),
+            new("country_code", !string.IsNullOrEmpty(user.CountryCode)
+                                    ? user.CountryCode
+                                    : Tenant.ClaimsTenantContext.DefaultCountryCode),
         };
 
         claims.AddRange(permissions.Select(p => new Claim("permission", p)));

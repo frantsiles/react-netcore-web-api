@@ -16,6 +16,8 @@ public class User : Entity
     public Email Email { get; private set; }
     public PasswordHash PasswordHash { get; private set; }
     public bool IsActive { get; private set; }
+    public Guid TenantId { get; private set; }
+    public string CountryCode { get; private set; } = "US";
 
     private readonly List<Role> _roles = [];
     public IReadOnlyList<Role> Roles => _roles.AsReadOnly();
@@ -32,7 +34,8 @@ public class User : Entity
         IsActive = true;
     }
 
-    public static User Create(string firstName, string lastName, string email, string passwordHash)
+    public static User Create(string firstName, string lastName, string email, string passwordHash,
+        Guid tenantId = default, string countryCode = "US")
     {
         if (string.IsNullOrWhiteSpace(firstName)) throw new DomainException("First name cannot be empty.");
         if (string.IsNullOrWhiteSpace(lastName)) throw new DomainException("Last name cannot be empty.");
@@ -41,7 +44,11 @@ public class User : Entity
             firstName.Trim(),
             lastName.Trim(),
             Email.Create(email),
-            PasswordHash.FromHash(passwordHash));
+            PasswordHash.FromHash(passwordHash))
+        {
+            TenantId = tenantId,
+            CountryCode = string.IsNullOrWhiteSpace(countryCode) ? "US" : countryCode.ToUpperInvariant()
+        };
     }
 
     public void AssignRole(Role role)

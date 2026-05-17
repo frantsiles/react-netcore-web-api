@@ -52,6 +52,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                   .IsRequired();
             });
 
+            entity.Property(u => u.TenantId).IsRequired();
+            entity.Property(u => u.CountryCode).IsRequired().HasMaxLength(2);
+
             entity.HasMany(u => u.Roles)
                   .WithMany()
                   .UsingEntity("UserRoles");

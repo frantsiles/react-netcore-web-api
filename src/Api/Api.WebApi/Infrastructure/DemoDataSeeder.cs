@@ -1,4 +1,7 @@
 using Api.Domain.Common;
+using Api.Domain.Users;
+using Api.Infrastructure.Persistence;
+using BCrypt.Net;
 using Banking.Domain.BankAccounts;
 using Banking.Infrastructure.Persistence;
 using Catalog.Domain.Catalog;
@@ -39,6 +42,7 @@ public static class DemoDataSeeder
         logger.LogInformation("Seeding demo companies...");
 
         await SeedTenantsAsync(controlPlane);
+        await SeedDemoUsersAsync(sp);
         await SeedTechSolAsync(sp);
         await SeedNexoAsync(sp);
         await SeedBellaModaAsync(sp);
@@ -60,6 +64,33 @@ public static class DemoDataSeeder
         };
 
         await db.Tenants.AddRangeAsync(companies);
+        await db.SaveChangesAsync();
+    }
+
+    // ── Demo users (one admin per tenant) ────────────────────────────────────
+
+    private static async Task SeedDemoUsersAsync(IServiceProvider sp)
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
+        if (adminRole is null) return;
+
+        var users = new[]
+        {
+            (Email: "admin@techsol.es",     Password: "TechSol123!",    First: "Admin", Last: "TechSol",    Tenant: TechSolId,     Country: "ES"),
+            (Email: "admin@nexo.mx",        Password: "Nexo123!",       First: "Admin", Last: "Nexo",       Tenant: NexoId,        Country: "MX"),
+            (Email: "admin@bellamoda.ar",   Password: "BellaModa123!",  First: "Admin", Last: "BellaModa",  Tenant: BellaModaId,   Country: "AR"),
+            (Email: "admin@mesagourmet.es", Password: "MesaGourmet123!",First: "Admin", Last: "MesaGourmet",Tenant: MesaGourmetId, Country: "ES"),
+        };
+
+        foreach (var (email, password, first, last, tenant, country) in users)
+        {
+            var hash = BCrypt.Net.BCrypt.HashPassword(password);
+            var user = User.Create(first, last, email, hash, tenant, country);
+            user.AssignRole(adminRole);
+            await db.Users.AddAsync(user);
+        }
+
         await db.SaveChangesAsync();
     }
 

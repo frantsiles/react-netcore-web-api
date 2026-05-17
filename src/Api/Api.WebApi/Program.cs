@@ -191,6 +191,12 @@ await ControlPlane.Infrastructure.DependencyInjection.SeedDefaultTenantAsync(app
 
 if (app.Environment.IsDevelopment())
 {
+    var demoLogger = app.Services.GetRequiredService<ILogger<Program>>();
+    await Api.WebApi.Infrastructure.DemoDataSeeder.SeedAsync(app.Services, demoLogger);
+}
+
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI();
 }

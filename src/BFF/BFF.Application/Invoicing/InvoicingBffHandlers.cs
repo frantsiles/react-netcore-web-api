@@ -3,6 +3,8 @@ using MediatR;
 
 namespace BFF.Application.Invoicing;
 
+file record PartyNameDto(Guid PartyId, string LegalName, string? TradeName);
+
 public class SearchInvoicesBffQueryHandler(IApiClient apiClient)
     : IRequestHandler<SearchInvoicesBffQuery, IReadOnlyList<InvoiceBffDto>>
 {
@@ -17,8 +19,13 @@ public class SearchInvoicesBffQueryHandler(IApiClient apiClient)
         parts.Add($"take={request.Take}");
 
         var url = $"api/invoicing/invoices?{string.Join("&", parts)}";
-        var result = await apiClient.GetAsync<List<InvoiceBffDto>>(url, request.Token, ct);
-        return result ?? [];
+        var invoices = await apiClient.GetAsync<List<InvoiceBffDto>>(url, request.Token, ct) ?? [];
+        if (invoices.Count == 0) return invoices;
+
+        var parties = await apiClient.GetAsync<List<PartyNameDto>>(
+            "api/parties?roleType=Customer&isActive=true&take=500", request.Token, ct) ?? [];
+        var nameMap = parties.ToDictionary(p => p.PartyId, p => p.TradeName ?? p.LegalName);
+        return invoices.Select(i => i with { CustomerName = nameMap.GetValueOrDefault(i.CustomerId, "—") }).ToList();
     }
 }
 

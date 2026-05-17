@@ -31,3 +31,12 @@ public record GetTrialBalanceBffQuery(string Token, string FiscalPeriod)
 
 public record GetProfitAndLossBffQuery(string Token, DateTime From, DateTime To)
     : MediatR.IRequest<ProfitAndLossBffDto>;
+
+public record MonthlyRevenueBffDto(string Month, decimal Revenue, decimal Cogs);
+public record MonthlyOrdersBffDto(string Month, int SalesOrders, int PurchaseOrders);
+public record RevenueTimeSeriesBffDto(
+    IReadOnlyList<MonthlyRevenueBffDto> Revenue,
+    IReadOnlyList<MonthlyOrdersBffDto> Orders);
+
+public record GetRevenueTimeSeriesBffQuery(string Token, int Months = 6)
+    : MediatR.IRequest<RevenueTimeSeriesBffDto>;

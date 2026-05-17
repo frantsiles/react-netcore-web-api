@@ -10,4 +10,5 @@ public interface IReportingStore
     Task<AgingReportDto> GetAccountsReceivableAgingAsync(DateTime asOf, CancellationToken ct = default);
     Task<AgingReportDto> GetAccountsPayableAgingAsync(DateTime asOf, CancellationToken ct = default);
     Task<KpiDashboardDto> GetKpiDashboardAsync(CancellationToken ct = default);
+    Task<RevenueTimeSeriesDto> GetRevenueTimeSeriesAsync(int months, CancellationToken ct = default);
 }

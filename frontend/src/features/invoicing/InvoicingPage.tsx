@@ -60,6 +60,7 @@ interface Invoice {
   id: string;
   invoiceNumber: string;
   customerId: string;
+  customerName: string;
   originSalesOrderId: string | null;
   status: string;
   issueDate: string;
@@ -205,6 +206,7 @@ export function InvoicingPage() {
 
   const columns = [
     col.accessor("invoiceNumber", { header: "Invoice #" }),
+    col.accessor("customerName", { header: "Cliente", cell: i => <span className="text-sm">{i.getValue()}</span> }),
     col.accessor("status", {
       header: "Status",
       cell: info => <StatusBadge status={info.getValue()} />,

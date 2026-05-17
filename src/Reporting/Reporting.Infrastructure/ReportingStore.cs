@@ -162,6 +162,72 @@ public class ReportingStore(
             openPOs, openSOs, pendingApprovals, lowStock, cashBalance);
     }
 
+    public async Task<RevenueTimeSeriesDto> GetRevenueTimeSeriesAsync(int months, CancellationToken ct = default)
+    {
+        var cutoff = DateTime.UtcNow.AddMonths(-months + 1).Date;
+        cutoff = new DateTime(cutoff.Year, cutoff.Month, 1);
+
+        var entries = await accountingDb.JournalEntries
+            .AsNoTracking()
+            .Where(je => je.Status == Accounting.Domain.JournalEntries.EntryStatus.Posted && je.EntryDate >= cutoff)
+            .Include(je => je.Lines)
+            .ToListAsync(ct);
+
+        var revenueAccounts = await accountingDb.Accounts.AsNoTracking()
+            .Where(a => a.Type == AccountType.Revenue || a.Type == AccountType.ContraRevenue)
+            .Select(a => new { a.Id, a.Type })
+            .ToListAsync(ct);
+
+        var revenueIds = revenueAccounts
+            .Where(a => a.Type == AccountType.Revenue)
+            .Select(a => a.Id).ToHashSet();
+        var cogsIds = revenueAccounts
+            .Where(a => a.Type == AccountType.ContraRevenue)
+            .Select(a => a.Id).ToHashSet();
+
+        var salesByMonth = await salesDb.SalesOrders.AsNoTracking()
+            .Where(o => o.OrderDate >= DateOnly.FromDateTime(cutoff))
+            .GroupBy(o => new { o.OrderDate.Year, o.OrderDate.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var purchasesByMonth = await purchasingDb.PurchaseOrders.AsNoTracking()
+            .Where(o => o.CreatedAt >= cutoff)
+            .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var revenue = new List<MonthlyRevenueDto>();
+        var orders = new List<MonthlyOrdersDto>();
+
+        for (var i = 0; i < months; i++)
+        {
+            var month = cutoff.AddMonths(i);
+            var label = month.ToString("MMM yyyy");
+
+            var monthEntries = entries
+                .Where(je => je.EntryDate.Year == month.Year && je.EntryDate.Month == month.Month)
+                .SelectMany(je => je.Lines)
+                .ToList();
+
+            var rev = monthEntries
+                .Where(l => revenueIds.Contains(l.AccountId) && l.Side == Accounting.Domain.JournalEntries.EntrySide.Credit)
+                .Sum(l => l.Amount);
+
+            var cogs = monthEntries
+                .Where(l => cogsIds.Contains(l.AccountId) && l.Side == Accounting.Domain.JournalEntries.EntrySide.Debit)
+                .Sum(l => l.Amount);
+
+            revenue.Add(new MonthlyRevenueDto(label, rev, cogs));
+
+            var soCnt = salesByMonth.FirstOrDefault(x => x.Year == month.Year && x.Month == month.Month)?.Count ?? 0;
+            var poCnt = purchasesByMonth.FirstOrDefault(x => x.Year == month.Year && x.Month == month.Month)?.Count ?? 0;
+            orders.Add(new MonthlyOrdersDto(label, soCnt, poCnt));
+        }
+
+        return new RevenueTimeSeriesDto(revenue, orders);
+    }
+
     private static AgingReportDto BuildAgingReport(string type, DateTime asOf, List<AgingLineDto> lines)
     {
         var bucketDefs = new[] { (0, 30, "0-30"), (31, 60, "31-60"), (61, 90, "61-90"), (91, int.MaxValue, "90+") };

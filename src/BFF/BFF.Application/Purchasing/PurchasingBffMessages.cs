@@ -27,7 +27,10 @@ public record PurchaseOrderBffDto(
     decimal Total,
     IReadOnlyList<PurchaseOrderLineBffDto> Lines,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt)
+{
+    public string SupplierName { get; init; } = "—";
+}
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 

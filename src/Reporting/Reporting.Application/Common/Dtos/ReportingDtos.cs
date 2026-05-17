@@ -75,6 +75,15 @@ public record AgingLineDto(
     decimal Amount,
     int DaysOverdue);
 
+// ── Revenue Time Series ────────────────────────────────────────────────────────
+
+public record MonthlyRevenueDto(string Month, decimal Revenue, decimal Cogs);
+public record MonthlyOrdersDto(string Month, int SalesOrders, int PurchaseOrders);
+
+public record RevenueTimeSeriesDto(
+    IReadOnlyList<MonthlyRevenueDto> Revenue,
+    IReadOnlyList<MonthlyOrdersDto> Orders);
+
 // ── KPI Dashboard ──────────────────────────────────────────────────────────────
 
 public record KpiDashboardDto(

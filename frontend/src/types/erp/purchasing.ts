@@ -18,6 +18,7 @@ export interface PurchaseOrderDto {
   id: string
   poNumber: string
   supplierId: string
+  supplierName: string
   status: PurchaseOrderStatus
   expectedDeliveryDate?: string
   currencyCode: string

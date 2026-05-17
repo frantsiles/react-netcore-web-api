@@ -1,9 +1,12 @@
 import api from '@/services/api'
-import type { KpiDashboardDto, TrialBalanceReportDto, ProfitAndLossReportDto, InventoryPositionReportDto } from '@/types/erp/reporting'
+import type { KpiDashboardDto, RevenueTimeSeriesDto, TrialBalanceReportDto, ProfitAndLossReportDto, InventoryPositionReportDto } from '@/types/erp/reporting'
 
 export const reportingService = {
   getKpiDashboard: () =>
     api.get<KpiDashboardDto>('/bff/reports/kpi-dashboard').then(r => r.data),
+
+  getRevenueTimeSeries: (months = 6) =>
+    api.get<RevenueTimeSeriesDto>(`/bff/reports/revenue-time-series?months=${months}`).then(r => r.data),
 
   getTrialBalance: (fiscalPeriod: string) =>
     api.get<TrialBalanceReportDto>(`/bff/reports/trial-balance?fiscalPeriod=${fiscalPeriod}`).then(r => r.data),

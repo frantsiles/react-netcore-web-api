@@ -21,6 +21,7 @@ export interface QuoteDto {
   id: string
   quoteNumber: string
   customerId: string
+  customerName: string
   status: QuoteStatus
   validUntil: string      // "YYYY-MM-DD"
   currencyCode: string
@@ -52,6 +53,7 @@ export interface SalesOrderDto {
   id: string
   orderNumber: string
   customerId: string
+  customerName: string
   status: SalesOrderStatus
   orderDate: string       // "YYYY-MM-DD"
   requestedDeliveryDate?: string

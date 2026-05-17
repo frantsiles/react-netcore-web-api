@@ -1,3 +1,20 @@
+export interface MonthlyRevenueDto {
+  month: string
+  revenue: number
+  cogs: number
+}
+
+export interface MonthlyOrdersDto {
+  month: string
+  salesOrders: number
+  purchaseOrders: number
+}
+
+export interface RevenueTimeSeriesDto {
+  revenue: MonthlyRevenueDto[]
+  orders: MonthlyOrdersDto[]
+}
+
 export interface KpiDashboardDto {
   asOf: string
   totalRevenue: number

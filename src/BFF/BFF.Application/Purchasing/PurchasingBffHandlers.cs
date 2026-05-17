@@ -3,6 +3,8 @@ using MediatR;
 
 namespace BFF.Application.Purchasing;
 
+file record PartyNameDto(Guid PartyId, string LegalName, string? TradeName);
+
 public class SearchPurchaseOrdersBffQueryHandler(IApiClient apiClient)
     : IRequestHandler<SearchPurchaseOrdersBffQuery, IReadOnlyList<PurchaseOrderBffDto>>
 {
@@ -18,8 +20,13 @@ public class SearchPurchaseOrdersBffQueryHandler(IApiClient apiClient)
             parts.Add($"poNumber={Uri.EscapeDataString(request.PoNumber)}");
 
         var url = $"api/purchasing/orders?{string.Join("&", parts)}";
-        var result = await apiClient.GetAsync<List<PurchaseOrderBffDto>>(url, request.Token, ct);
-        return result ?? [];
+        var orders = await apiClient.GetAsync<List<PurchaseOrderBffDto>>(url, request.Token, ct) ?? [];
+        if (orders.Count == 0) return orders;
+
+        var parties = await apiClient.GetAsync<List<PartyNameDto>>(
+            "api/parties?roleType=Supplier&isActive=true&take=500", request.Token, ct) ?? [];
+        var nameMap = parties.ToDictionary(p => p.PartyId, p => p.TradeName ?? p.LegalName);
+        return orders.Select(o => o with { SupplierName = nameMap.GetValueOrDefault(o.SupplierId, "—") }).ToList();
     }
 }
 

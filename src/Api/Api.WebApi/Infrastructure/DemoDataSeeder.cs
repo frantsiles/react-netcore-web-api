@@ -1,3 +1,6 @@
+using Accounting.Domain.Accounts;
+using Accounting.Domain.JournalEntries;
+using Accounting.Infrastructure.Persistence;
 using Api.Domain.Common;
 using Api.Domain.Users;
 using Api.Infrastructure.Persistence;
@@ -19,6 +22,11 @@ using Microsoft.EntityFrameworkCore;
 using Parties.Domain.Parties;
 using Parties.Domain.ValueObjects;
 using Parties.Infrastructure.Persistence;
+using Purchasing.Domain.PurchaseOrders;
+using Purchasing.Infrastructure.Persistence;
+using Sales.Domain.Orders;
+using Sales.Domain.Quotes;
+using Sales.Infrastructure.Persistence;
 using Tax.Domain.TaxRates;
 using Tax.Infrastructure.Persistence;
 
@@ -191,6 +199,131 @@ public static class DemoDataSeeder
             Contract.Create(tid, ware2.Id, "CT-TS-005", new DateOnly(2023, 1, 9), 1_800m, "EUR"),
             Contract.Create(tid, itEng.Id, "CT-TS-006", new DateOnly(2021, 9, 1), 3_200m, "EUR"));
         await hr.SaveChangesAsync();
+
+        // Sales — quotes + orders
+        var sales = sp.GetRequiredService<SalesDbContext>();
+
+        var q1 = Quote.Create("COT-TS-001", customers[0].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "EUR", "ES");
+        q1.TenantId = tid;
+        q1.AddLine(QuoteLine.Create(items[0].Id, items[0].SKU, items[0].Name, 3, Money.Of(1_200m, "EUR")));
+        q1.AddLine(QuoteLine.Create(items[1].Id, items[1].SKU, items[1].Name, 2, Money.Of(450m, "EUR")));
+
+        var q2 = Quote.Create("COT-TS-002", customers[1].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(15)), "EUR", "ES");
+        q2.TenantId = tid;
+        q2.AddLine(QuoteLine.Create(items[2].Id, items[2].SKU, items[2].Name, 10, Money.Of(89m, "EUR")));
+        q2.AddLine(QuoteLine.Create(items[3].Id, items[3].SKU, items[3].Name, 10, Money.Of(35m, "EUR")));
+        q2.Send();
+        q2.Accept();
+        q2.MarkConvertedToOrder();
+
+        var q3 = Quote.Create("COT-TS-003", customers[2].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(45)), "EUR", "ES");
+        q3.TenantId = tid;
+        q3.AddLine(QuoteLine.Create(items[5].Id, items[5].SKU, items[5].Name, 5, Money.Of(75m, "EUR")));
+        q3.Send();
+
+        await sales.Quotes.AddRangeAsync(q1, q2, q3);
+
+        var so1 = SalesOrder.Create("OV-TS-001", customers[1].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)), "EUR", "ES",
+            requestedDeliveryDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)),
+            originQuoteId: q2.Id);
+        so1.TenantId = tid;
+        so1.AddLine(SalesOrderLine.Create(items[2].Id, items[2].SKU, items[2].Name, 10, Money.Of(89m, "EUR")));
+        so1.AddLine(SalesOrderLine.Create(items[3].Id, items[3].SKU, items[3].Name, 10, Money.Of(35m, "EUR")));
+        so1.Confirm();
+
+        var so2 = SalesOrder.Create("OV-TS-002", customers[3].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)), "EUR", "ES");
+        so2.TenantId = tid;
+        so2.AddLine(SalesOrderLine.Create(items[0].Id, items[0].SKU, items[0].Name, 2, Money.Of(1_200m, "EUR")));
+        so2.Confirm();
+
+        await sales.SalesOrders.AddRangeAsync(so1, so2);
+        await sales.SaveChangesAsync();
+
+        // Purchasing — purchase orders
+        var purchasing = sp.GetRequiredService<PurchasingDbContext>();
+
+        var po1 = PurchaseOrder.Create(tid, "OC-TS-001", suppliers[0].Id, "EUR", "ES",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(14));
+        po1.AddLine(items[0].Id, items[0].SKU, items[0].Name, 20, Money.Of(800m, "EUR"));
+        po1.AddLine(items[1].Id, items[1].SKU, items[1].Name, 15, Money.Of(280m, "EUR"));
+        po1.Send();
+        po1.Confirm();
+
+        var po2 = PurchaseOrder.Create(tid, "OC-TS-002", suppliers[2].Id, "EUR", "ES",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(7));
+        po2.AddLine(items[2].Id, items[2].SKU, items[2].Name, 30, Money.Of(55m, "EUR"));
+        po2.AddLine(items[3].Id, items[3].SKU, items[3].Name, 30, Money.Of(22m, "EUR"));
+        po2.Send();
+
+        await purchasing.PurchaseOrders.AddRangeAsync(po1, po2);
+        await purchasing.SaveChangesAsync();
+
+        // Accounting — chart of accounts + opening entries
+        var accounting = sp.GetRequiredService<AccountingDbContext>();
+        var acctBank   = Account.Create(tid, "1100", "Banco Santander",          AccountType.Asset,     "EUR");
+        var acctAR     = Account.Create(tid, "1200", "Cuentas por Cobrar",       AccountType.Asset,     "EUR");
+        var acctInv    = Account.Create(tid, "1300", "Inventario",               AccountType.Asset,     "EUR");
+        var acctAP     = Account.Create(tid, "2100", "Cuentas por Pagar",        AccountType.Liability, "EUR");
+        var acctCap    = Account.Create(tid, "3000", "Capital Social",           AccountType.Equity,    "EUR");
+        var acctRev    = Account.Create(tid, "4000", "Ventas",                   AccountType.Revenue,   "EUR");
+        var acctCOGS   = Account.Create(tid, "5000", "Costo de Ventas",          AccountType.Expense,   "EUR");
+        var acctSalary = Account.Create(tid, "6100", "Gastos de Personal",       AccountType.Expense,   "EUR");
+        var acctRent   = Account.Create(tid, "6200", "Alquiler y Arrendamiento", AccountType.Expense,   "EUR");
+        await accounting.Accounts.AddRangeAsync(acctBank, acctAR, acctInv, acctAP, acctCap, acctRev, acctCOGS, acctSalary, acctRent);
+        await accounting.SaveChangesAsync();
+
+        var je1 = JournalEntry.Create(tid, "JE-TS-001",
+            DateTime.UtcNow.AddDays(-30), "Saldo inicial — constitución de capital");
+        je1.AddLine(acctBank.Id, acctBank.AccountNumber, acctBank.Name, EntrySide.Debit, 150_000m);
+        je1.AddLine(acctCap.Id, acctCap.AccountNumber, acctCap.Name, EntrySide.Credit, 150_000m);
+        var je1Lines = je1.Post();
+        foreach (var l in je1Lines)
+        {
+            if (l.AccountId == acctBank.Id) acctBank.ApplyDebit(l.Amount);
+            else acctCap.ApplyCredit(l.Amount);
+        }
+
+        var je2 = JournalEntry.Create(tid, "JE-TS-002",
+            DateTime.UtcNow.AddDays(-10), "Venta OV-TS-001 — Monitor y Teclado");
+        je2.AddLine(acctAR.Id,  acctAR.AccountNumber,  acctAR.Name,  EntrySide.Debit,  1_240m);
+        je2.AddLine(acctRev.Id, acctRev.AccountNumber, acctRev.Name, EntrySide.Credit, 1_240m);
+        var je2Lines = je2.Post();
+        foreach (var l in je2Lines)
+        {
+            if (l.AccountId == acctAR.Id) acctAR.ApplyDebit(l.Amount);
+            else acctRev.ApplyCredit(l.Amount);
+        }
+
+        var je3 = JournalEntry.Create(tid, "JE-TS-003",
+            DateTime.UtcNow.AddDays(-5), "Venta OV-TS-002 — Laptops");
+        je3.AddLine(acctAR.Id,  acctAR.AccountNumber,  acctAR.Name,  EntrySide.Debit,  2_400m);
+        je3.AddLine(acctRev.Id, acctRev.AccountNumber, acctRev.Name, EntrySide.Credit, 2_400m);
+        var je3Lines = je3.Post();
+        foreach (var l in je3Lines)
+        {
+            if (l.AccountId == acctAR.Id) acctAR.ApplyDebit(l.Amount);
+            else acctRev.ApplyCredit(l.Amount);
+        }
+
+        var je4 = JournalEntry.Create(tid, "JE-TS-004",
+            DateTime.UtcNow.AddDays(-8), "Gastos de personal — Abril");
+        je4.AddLine(acctSalary.Id, acctSalary.AccountNumber, acctSalary.Name, EntrySide.Debit,  19_900m);
+        je4.AddLine(acctBank.Id,   acctBank.AccountNumber,   acctBank.Name,   EntrySide.Credit, 19_900m);
+        var je4Lines = je4.Post();
+        foreach (var l in je4Lines)
+        {
+            if (l.AccountId == acctSalary.Id) acctSalary.ApplyDebit(l.Amount);
+            else acctBank.ApplyCredit(l.Amount);
+        }
+
+        await accounting.JournalEntries.AddRangeAsync(je1, je2, je3, je4);
+        accounting.Accounts.UpdateRange(acctBank, acctAR, acctInv, acctAP, acctCap, acctRev, acctCOGS, acctSalary, acctRent);
+        await accounting.SaveChangesAsync();
     }
 
     // ── Nexo Consulting Group ─────────────────────────────────────────────────
@@ -259,6 +392,97 @@ public static class DemoDataSeeder
             Contract.Create(tid, admin.Id, "CT-NX-004", new DateOnly(2020, 1, 15), 22_000m, "MXN"),
             Contract.Create(tid, finanzas.Id, "CT-NX-005", new DateOnly(2021, 7, 1), 30_000m, "MXN"));
         await hr.SaveChangesAsync();
+
+        // Sales — consulting proposals + confirmed projects
+        var salesNx = sp.GetRequiredService<SalesDbContext>();
+
+        var qNx1 = Quote.Create("COT-NX-001", customers[0].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "MXN", "MX");
+        qNx1.TenantId = tid;
+        qNx1.AddLine(QuoteLine.Create(services[0].Id, services[0].SKU, services[0].Name, 80, Money.Of(2_500m, "MXN")));
+        qNx1.AddLine(QuoteLine.Create(services[4].Id, services[4].SKU, services[4].Name, 3, Money.Of(45_000m, "MXN")));
+        qNx1.Send();
+        qNx1.Accept();
+        qNx1.MarkConvertedToOrder();
+
+        var qNx2 = Quote.Create("COT-NX-002", customers[2].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(20)), "MXN", "MX");
+        qNx2.TenantId = tid;
+        qNx2.AddLine(QuoteLine.Create(services[1].Id, services[1].SKU, services[1].Name, 2, Money.Of(85_000m, "MXN")));
+        qNx2.Send();
+
+        var qNx3 = Quote.Create("COT-NX-003", customers[3].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(45)), "MXN", "MX");
+        qNx3.TenantId = tid;
+        qNx3.AddLine(QuoteLine.Create(services[2].Id, services[2].SKU, services[2].Name, 200, Money.Of(1_800m, "MXN")));
+        qNx3.AddLine(QuoteLine.Create(services[3].Id, services[3].SKU, services[3].Name, 40, Money.Of(2_200m, "MXN")));
+
+        await salesNx.Quotes.AddRangeAsync(qNx1, qNx2, qNx3);
+
+        var soNx1 = SalesOrder.Create("OV-NX-001", customers[0].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-20)), "MXN", "MX",
+            originQuoteId: qNx1.Id);
+        soNx1.TenantId = tid;
+        soNx1.AddLine(SalesOrderLine.Create(services[0].Id, services[0].SKU, services[0].Name, 80, Money.Of(2_500m, "MXN")));
+        soNx1.AddLine(SalesOrderLine.Create(services[4].Id, services[4].SKU, services[4].Name, 3, Money.Of(45_000m, "MXN")));
+        soNx1.Confirm();
+
+        var soNx2 = SalesOrder.Create("OV-NX-002", customers[1].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-8)), "MXN", "MX");
+        soNx2.TenantId = tid;
+        soNx2.AddLine(SalesOrderLine.Create(services[0].Id, services[0].SKU, services[0].Name, 40, Money.Of(2_500m, "MXN")));
+        soNx2.Confirm();
+
+        await salesNx.SalesOrders.AddRangeAsync(soNx1, soNx2);
+        await salesNx.SaveChangesAsync();
+
+        // Accounting — professional services chart of accounts
+        var accountingNx = sp.GetRequiredService<AccountingDbContext>();
+        var nxBank   = Account.Create(tid, "1100", "BBVA México — cuenta operativa", AccountType.Asset,     "MXN");
+        var nxAR     = Account.Create(tid, "1200", "Cuentas por Cobrar Clientes",    AccountType.Asset,     "MXN");
+        var nxAP     = Account.Create(tid, "2100", "Cuentas por Pagar",              AccountType.Liability, "MXN");
+        var nxCap    = Account.Create(tid, "3000", "Capital Social",                 AccountType.Equity,    "MXN");
+        var nxRev    = Account.Create(tid, "4000", "Ingresos por Consultoría",       AccountType.Revenue,   "MXN");
+        var nxSalary = Account.Create(tid, "6100", "Sueldos y Honorarios",           AccountType.Expense,   "MXN");
+        await accountingNx.Accounts.AddRangeAsync(nxBank, nxAR, nxAP, nxCap, nxRev, nxSalary);
+        await accountingNx.SaveChangesAsync();
+
+        var jeNx1 = JournalEntry.Create(tid, "JE-NX-001",
+            DateTime.UtcNow.AddDays(-60), "Saldo inicial");
+        jeNx1.AddLine(nxBank.Id, nxBank.AccountNumber, nxBank.Name, EntrySide.Debit,  500_000m);
+        jeNx1.AddLine(nxCap.Id,  nxCap.AccountNumber,  nxCap.Name,  EntrySide.Credit, 500_000m);
+        var jeNx1Lines = jeNx1.Post();
+        foreach (var l in jeNx1Lines)
+        {
+            if (l.AccountId == nxBank.Id) nxBank.ApplyDebit(l.Amount);
+            else nxCap.ApplyCredit(l.Amount);
+        }
+
+        var jeNx2 = JournalEntry.Create(tid, "JE-NX-002",
+            DateTime.UtcNow.AddDays(-20), "Cobro proyecto Azteca Q1");
+        jeNx2.AddLine(nxBank.Id, nxBank.AccountNumber, nxBank.Name, EntrySide.Debit,  180_000m);
+        jeNx2.AddLine(nxRev.Id,  nxRev.AccountNumber,  nxRev.Name,  EntrySide.Credit, 180_000m);
+        var jeNx2Lines = jeNx2.Post();
+        foreach (var l in jeNx2Lines)
+        {
+            if (l.AccountId == nxBank.Id) nxBank.ApplyDebit(l.Amount);
+            else nxRev.ApplyCredit(l.Amount);
+        }
+
+        var jeNx3 = JournalEntry.Create(tid, "JE-NX-003",
+            DateTime.UtcNow.AddDays(-10), "Nómina Abril");
+        jeNx3.AddLine(nxSalary.Id, nxSalary.AccountNumber, nxSalary.Name, EntrySide.Debit,  85_000m);
+        jeNx3.AddLine(nxBank.Id,   nxBank.AccountNumber,   nxBank.Name,   EntrySide.Credit, 85_000m);
+        var jeNx3Lines = jeNx3.Post();
+        foreach (var l in jeNx3Lines)
+        {
+            if (l.AccountId == nxSalary.Id) nxSalary.ApplyDebit(l.Amount);
+            else nxBank.ApplyCredit(l.Amount);
+        }
+
+        await accountingNx.JournalEntries.AddRangeAsync(jeNx1, jeNx2, jeNx3);
+        accountingNx.Accounts.UpdateRange(nxBank, nxAR, nxAP, nxCap, nxRev, nxSalary);
+        await accountingNx.SaveChangesAsync();
     }
 
     // ── Bella Moda Retail S.A. ────────────────────────────────────────────────
@@ -602,6 +826,162 @@ public static class DemoDataSeeder
             Contract.Create(tid, jCompras.Id, "CT-MM-007", new DateOnly(2016, 7, 1), 1_050_000m, "CRC"),
             Contract.Create(tid, contadora.Id, "CT-MM-008", new DateOnly(2015, 3, 1), 1_200_000m, "CRC"));
         await hr.SaveChangesAsync();
+
+        // Sales — B2B wholesale quotes and orders
+        var salesMm = sp.GetRequiredService<SalesDbContext>();
+
+        var qMm1 = Quote.Create("COT-MM-001", customers[0].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "CRC", "CR");
+        qMm1.TenantId = tid;
+        qMm1.AddLine(QuoteLine.Create(items[0].Id, items[0].SKU, items[0].Name, 200, Money.Of(2_500m, "CRC")));
+        qMm1.AddLine(QuoteLine.Create(items[1].Id, items[1].SKU, items[1].Name, 100, Money.Of(1_800m, "CRC")));
+        qMm1.AddLine(QuoteLine.Create(items[5].Id, items[5].SKU, items[5].Name, 150, Money.Of(1_200m, "CRC")));
+        qMm1.Send();
+        qMm1.Accept();
+        qMm1.MarkConvertedToOrder();
+
+        var qMm2 = Quote.Create("COT-MM-002", customers[2].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(45)), "CRC", "CR");
+        qMm2.TenantId = tid;
+        qMm2.AddLine(QuoteLine.Create(items[13].Id, items[13].SKU, items[13].Name, 500, Money.Of(8_500m, "CRC")));
+        qMm2.AddLine(QuoteLine.Create(items[14].Id, items[14].SKU, items[14].Name, 300, Money.Of(5_200m, "CRC")));
+        qMm2.Send();
+
+        var qMm3 = Quote.Create("COT-MM-003", customers[3].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(20)), "CRC", "CR");
+        qMm3.TenantId = tid;
+        qMm3.AddLine(QuoteLine.Create(items[17].Id, items[17].SKU, items[17].Name, 300, Money.Of(3_200m, "CRC")));
+        qMm3.AddLine(QuoteLine.Create(items[18].Id, items[18].SKU, items[18].Name, 200, Money.Of(4_500m, "CRC")));
+
+        await salesMm.Quotes.AddRangeAsync(qMm1, qMm2, qMm3);
+
+        var soMm1 = SalesOrder.Create("OV-MM-001", customers[0].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-15)), "CRC", "CR",
+            requestedDeliveryDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)),
+            originQuoteId: qMm1.Id);
+        soMm1.TenantId = tid;
+        soMm1.AddLine(SalesOrderLine.Create(items[0].Id, items[0].SKU, items[0].Name, 200, Money.Of(2_500m, "CRC")));
+        soMm1.AddLine(SalesOrderLine.Create(items[1].Id, items[1].SKU, items[1].Name, 100, Money.Of(1_800m, "CRC")));
+        soMm1.AddLine(SalesOrderLine.Create(items[5].Id, items[5].SKU, items[5].Name, 150, Money.Of(1_200m, "CRC")));
+        soMm1.Confirm();
+
+        var soMm2 = SalesOrder.Create("OV-MM-002", customers[1].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), "CRC", "CR");
+        soMm2.TenantId = tid;
+        soMm2.AddLine(SalesOrderLine.Create(items[6].Id, items[6].SKU, items[6].Name, 10, Money.Of(195_000m, "CRC")));
+        soMm2.AddLine(SalesOrderLine.Create(items[7].Id, items[7].SKU, items[7].Name, 20, Money.Of(42_000m, "CRC")));
+        soMm2.Confirm();
+
+        var soMm3 = SalesOrder.Create("OV-MM-003", customers[4].Id,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)), "CRC", "CR");
+        soMm3.TenantId = tid;
+        soMm3.AddLine(SalesOrderLine.Create(items[0].Id, items[0].SKU, items[0].Name, 100, Money.Of(2_500m, "CRC")));
+        soMm3.AddLine(SalesOrderLine.Create(items[2].Id, items[2].SKU, items[2].Name, 80, Money.Of(1_650m, "CRC")));
+
+        await salesMm.SalesOrders.AddRangeAsync(soMm1, soMm2, soMm3);
+        await salesMm.SaveChangesAsync();
+
+        // Purchasing — replenishment orders from suppliers
+        var purchasingMm = sp.GetRequiredService<PurchasingDbContext>();
+
+        var poMm1 = PurchaseOrder.Create(tid, "OC-MM-001", suppliers[0].Id, "CRC", "CR",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(3));
+        poMm1.AddLine(items[0].Id, items[0].SKU, items[0].Name, 500, Money.Of(1_400m, "CRC"));
+        poMm1.AddLine(items[1].Id, items[1].SKU, items[1].Name, 300, Money.Of(980m, "CRC"));
+        poMm1.AddLine(items[5].Id, items[5].SKU, items[5].Name, 400, Money.Of(720m, "CRC"));
+        poMm1.Send();
+        poMm1.Confirm();
+
+        var poMm2 = PurchaseOrder.Create(tid, "OC-MM-002", suppliers[1].Id, "CRC", "CR",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(10));
+        poMm2.AddLine(items[6].Id, items[6].SKU, items[6].Name, 20, Money.Of(120_000m, "CRC"));
+        poMm2.AddLine(items[7].Id, items[7].SKU, items[7].Name, 30, Money.Of(25_000m, "CRC"));
+        poMm2.AddLine(items[8].Id, items[8].SKU, items[8].Name, 15, Money.Of(55_000m, "CRC"));
+        poMm2.Send();
+
+        var poMm3 = PurchaseOrder.Create(tid, "OC-MM-003", suppliers[4].Id, "CRC", "CR",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(5));
+        poMm3.AddLine(items[10].Id, items[10].SKU, items[10].Name, 200, Money.Of(3_200m, "CRC"));
+        poMm3.AddLine(items[11].Id, items[11].SKU, items[11].Name, 150, Money.Of(4_800m, "CRC"));
+        poMm3.Send();
+        poMm3.Confirm();
+
+        await purchasingMm.PurchaseOrders.AddRangeAsync(poMm1, poMm2, poMm3);
+        await purchasingMm.SaveChangesAsync();
+
+        // Accounting — balance sheet in CRC
+        var accountingMm = sp.GetRequiredService<AccountingDbContext>();
+        var mmBank   = Account.Create(tid, "1100", "Banco Nacional — cuenta corriente CRC", AccountType.Asset,     "CRC");
+        var mmBankUSD= Account.Create(tid, "1101", "BAC San José — cuenta USD",             AccountType.Asset,     "USD");
+        var mmAR     = Account.Create(tid, "1200", "Cuentas por Cobrar Clientes",           AccountType.Asset,     "CRC");
+        var mmInv    = Account.Create(tid, "1300", "Inventario de Mercancía",                AccountType.Asset,     "CRC");
+        var mmAP     = Account.Create(tid, "2100", "Cuentas por Pagar Proveedores",          AccountType.Liability, "CRC");
+        var mmCap    = Account.Create(tid, "3000", "Capital Social",                         AccountType.Equity,    "CRC");
+        var mmRev    = Account.Create(tid, "4000", "Ventas Netas",                           AccountType.Revenue,   "CRC");
+        var mmCOGS   = Account.Create(tid, "5000", "Costo de Ventas",                        AccountType.Expense,   "CRC");
+        var mmSalary = Account.Create(tid, "6100", "Sueldos y Cargas Sociales",              AccountType.Expense,   "CRC");
+        var mmRent   = Account.Create(tid, "6200", "Alquiler Local Comercial",               AccountType.Expense,   "CRC");
+        await accountingMm.Accounts.AddRangeAsync(mmBank, mmBankUSD, mmAR, mmInv, mmAP, mmCap, mmRev, mmCOGS, mmSalary, mmRent);
+        await accountingMm.SaveChangesAsync();
+
+        var jeMm1 = JournalEntry.Create(tid, "JE-MM-001",
+            DateTime.UtcNow.AddDays(-60), "Saldo inicial");
+        jeMm1.AddLine(mmBank.Id, mmBank.AccountNumber, mmBank.Name, EntrySide.Debit,  80_000_000m);
+        jeMm1.AddLine(mmCap.Id,  mmCap.AccountNumber,  mmCap.Name,  EntrySide.Credit, 80_000_000m);
+        var jeMm1Lines = jeMm1.Post();
+        foreach (var l in jeMm1Lines)
+        {
+            if (l.AccountId == mmBank.Id) mmBank.ApplyDebit(l.Amount);
+            else mmCap.ApplyCredit(l.Amount);
+        }
+
+        var jeMm2 = JournalEntry.Create(tid, "JE-MM-002",
+            DateTime.UtcNow.AddDays(-15), "Ventas semana 18");
+        jeMm2.AddLine(mmBank.Id, mmBank.AccountNumber, mmBank.Name, EntrySide.Debit,  6_250_000m);
+        jeMm2.AddLine(mmRev.Id,  mmRev.AccountNumber,  mmRev.Name,  EntrySide.Credit, 6_250_000m);
+        var jeMm2Lines = jeMm2.Post();
+        foreach (var l in jeMm2Lines)
+        {
+            if (l.AccountId == mmBank.Id) mmBank.ApplyDebit(l.Amount);
+            else mmRev.ApplyCredit(l.Amount);
+        }
+
+        var jeMm3 = JournalEntry.Create(tid, "JE-MM-003",
+            DateTime.UtcNow.AddDays(-7), "Ventas semana 19");
+        jeMm3.AddLine(mmBank.Id, mmBank.AccountNumber, mmBank.Name, EntrySide.Debit,  7_100_000m);
+        jeMm3.AddLine(mmRev.Id,  mmRev.AccountNumber,  mmRev.Name,  EntrySide.Credit, 7_100_000m);
+        var jeMm3Lines = jeMm3.Post();
+        foreach (var l in jeMm3Lines)
+        {
+            if (l.AccountId == mmBank.Id) mmBank.ApplyDebit(l.Amount);
+            else mmRev.ApplyCredit(l.Amount);
+        }
+
+        var jeMm4 = JournalEntry.Create(tid, "JE-MM-004",
+            DateTime.UtcNow.AddDays(-6), "Nómina quincenal");
+        jeMm4.AddLine(mmSalary.Id, mmSalary.AccountNumber, mmSalary.Name, EntrySide.Debit,  4_200_000m);
+        jeMm4.AddLine(mmBank.Id,   mmBank.AccountNumber,   mmBank.Name,   EntrySide.Credit, 4_200_000m);
+        var jeMm4Lines = jeMm4.Post();
+        foreach (var l in jeMm4Lines)
+        {
+            if (l.AccountId == mmSalary.Id) mmSalary.ApplyDebit(l.Amount);
+            else mmBank.ApplyCredit(l.Amount);
+        }
+
+        var jeMm5 = JournalEntry.Create(tid, "JE-MM-005",
+            DateTime.UtcNow.AddDays(-14), "Pago proveedor Dist. Nacional Alimentos");
+        jeMm5.AddLine(mmAP.Id,   mmAP.AccountNumber,   mmAP.Name,   EntrySide.Debit,  3_800_000m);
+        jeMm5.AddLine(mmBank.Id, mmBank.AccountNumber, mmBank.Name, EntrySide.Credit, 3_800_000m);
+        var jeMm5Lines = jeMm5.Post();
+        foreach (var l in jeMm5Lines)
+        {
+            if (l.AccountId == mmAP.Id) mmAP.ApplyDebit(l.Amount);
+            else mmBank.ApplyCredit(l.Amount);
+        }
+
+        await accountingMm.JournalEntries.AddRangeAsync(jeMm1, jeMm2, jeMm3, jeMm4, jeMm5);
+        accountingMm.Accounts.UpdateRange(mmBank, mmBankUSD, mmAR, mmInv, mmAP, mmCap, mmRev, mmCOGS, mmSalary, mmRent);
+        await accountingMm.SaveChangesAsync();
     }
 
     // ── Factory helpers ───────────────────────────────────────────────────────

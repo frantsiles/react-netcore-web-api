@@ -5,6 +5,7 @@ using Reporting.Application.Queries.AccountsPayableReceivable;
 using Reporting.Application.Queries.InventoryPosition;
 using Reporting.Application.Queries.KpiDashboard;
 using Reporting.Application.Queries.ProfitAndLoss;
+using Reporting.Application.Queries.RevenueTimeSeries;
 using Reporting.Application.Queries.TrialBalance;
 
 namespace Api.WebApi.Controllers;
@@ -40,4 +41,9 @@ public class ReportsController(ISender sender) : ControllerBase
     [HttpGet("kpi-dashboard")]
     public async Task<IActionResult> KpiDashboard(CancellationToken ct)
         => Ok(await sender.Send(new KpiDashboardQuery(), ct));
+
+    [HttpGet("revenue-time-series")]
+    public async Task<IActionResult> RevenueTimeSeries(
+        [FromQuery] int months = 6, CancellationToken ct = default)
+        => Ok(await sender.Send(new RevenueTimeSeriesQuery(months), ct));
 }

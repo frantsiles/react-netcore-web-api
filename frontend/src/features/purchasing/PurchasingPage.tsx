@@ -191,9 +191,9 @@ export function PurchasingPage() {
       header: 'N° Orden',
       cell: i => <span className="font-mono text-sm font-medium">{i.getValue()}</span>,
     }),
-    col.accessor('supplierId', {
+    col.accessor('supplierName', {
       header: 'Proveedor',
-      cell: i => <span className="font-mono text-xs text-muted-foreground">{i.getValue().slice(0, 8)}…</span>,
+      cell: i => <span className="text-sm">{i.getValue()}</span>,
     }),
     col.accessor('status', {
       header: 'Estado',

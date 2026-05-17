@@ -35,3 +35,14 @@ public class GetProfitAndLossBffQueryHandler(IApiClient apiClient)
         return result!;
     }
 }
+
+public class GetRevenueTimeSeriesBffQueryHandler(IApiClient apiClient)
+    : IRequestHandler<GetRevenueTimeSeriesBffQuery, RevenueTimeSeriesBffDto>
+{
+    public async Task<RevenueTimeSeriesBffDto> Handle(GetRevenueTimeSeriesBffQuery request, CancellationToken ct)
+    {
+        var result = await apiClient.GetAsync<RevenueTimeSeriesBffDto>(
+            $"api/reports/revenue-time-series?months={request.Months}", request.Token, ct);
+        return result!;
+    }
+}

@@ -20,31 +20,26 @@ const fmt = (n: number, currency = false) =>
 
 const pct = (n: number) => `${n.toFixed(1)}%`
 
-// Demo sparkline data — in production this would come from a time-series endpoint
-const revenueData = [
-  { mes: 'Ene', ingresos: 45000, costos: 28000 },
-  { mes: 'Feb', ingresos: 52000, costos: 31000 },
-  { mes: 'Mar', ingresos: 49000, costos: 29500 },
-  { mes: 'Abr', ingresos: 63000, costos: 36000 },
-  { mes: 'May', ingresos: 71000, costos: 40000 },
-  { mes: 'Jun', ingresos: 68000, costos: 38000 },
-]
-
-const orderData = [
-  { mes: 'Ene', ventas: 12, compras: 8 },
-  { mes: 'Feb', ventas: 15, compras: 10 },
-  { mes: 'Mar', ventas: 11, compras: 7 },
-  { mes: 'Abr', ventas: 18, compras: 12 },
-  { mes: 'May', ventas: 22, compras: 14 },
-  { mes: 'Jun', ventas: 20, compras: 13 },
-]
-
 export function DashboardPage() {
   const { data: kpi, isLoading } = useQuery({
     queryKey: ['kpi-dashboard'],
     queryFn: reportingService.getKpiDashboard,
     refetchInterval: 60_000,
   })
+
+  const { data: timeSeries } = useQuery({
+    queryKey: ['revenue-time-series'],
+    queryFn: () => reportingService.getRevenueTimeSeries(6),
+    refetchInterval: 300_000,
+  })
+
+  const revenueData = (timeSeries?.revenue ?? []).map(d => ({
+    mes: d.month, ingresos: d.revenue, costos: d.cogs,
+  }))
+
+  const orderData = (timeSeries?.orders ?? []).map(d => ({
+    mes: d.month, ventas: d.salesOrders, compras: d.purchaseOrders,
+  }))
 
   return (
     <div className="space-y-6">

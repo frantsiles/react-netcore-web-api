@@ -12,7 +12,10 @@ public record InvoiceBffDto(
     string Status, string IssueDate, string DueDate, string CurrencyCode,
     decimal Subtotal, decimal TaxAmount, decimal TotalAmount,
     decimal PaidAmount, decimal BalanceDue, string? Notes,
-    IReadOnlyList<InvoiceLineBffDto> Lines, DateTime CreatedAt, DateTime UpdatedAt);
+    IReadOnlyList<InvoiceLineBffDto> Lines, DateTime CreatedAt, DateTime UpdatedAt)
+{
+    public string CustomerName { get; init; } = "—";
+}
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 

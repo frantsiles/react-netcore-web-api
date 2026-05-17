@@ -224,9 +224,9 @@ export function SalesPage() {
       header: 'Número',
       cell: i => <span className="font-mono text-sm font-medium">{i.getValue()}</span>,
     }),
-    qCol.accessor('customerId', {
+    qCol.accessor('customerName', {
       header: 'Cliente',
-      cell: i => <span className="font-mono text-xs text-muted-foreground">{i.getValue().slice(0, 8)}…</span>,
+      cell: i => <span className="text-sm">{i.getValue()}</span>,
     }),
     qCol.accessor('status', {
       header: 'Estado',
@@ -288,9 +288,9 @@ export function SalesPage() {
       header: 'Número',
       cell: i => <span className="font-mono text-sm font-medium">{i.getValue()}</span>,
     }),
-    oCol.accessor('customerId', {
+    oCol.accessor('customerName', {
       header: 'Cliente',
-      cell: i => <span className="font-mono text-xs text-muted-foreground">{i.getValue().slice(0, 8)}…</span>,
+      cell: i => <span className="text-sm">{i.getValue()}</span>,
     }),
     oCol.accessor('status', {
       header: 'Estado',

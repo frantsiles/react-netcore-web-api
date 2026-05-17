@@ -30,7 +30,10 @@ public record QuoteBffDto(
     decimal Total,
     string? Notes,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt)
+{
+    public string CustomerName { get; init; } = "—";
+}
 
 public record SalesOrderLineBffDto(
     Guid Id,
@@ -61,7 +64,10 @@ public record SalesOrderBffDto(
     decimal Total,
     string? Notes,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt)
+{
+    public string CustomerName { get; init; } = "—";
+}
 
 // ── Quote Queries ─────────────────────────────────────────────────────────────
 

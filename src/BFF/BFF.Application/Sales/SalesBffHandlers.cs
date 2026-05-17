@@ -3,6 +3,8 @@ using MediatR;
 
 namespace BFF.Application.Sales;
 
+file record PartyNameDto(Guid PartyId, string LegalName, string? TradeName);
+
 public class SearchQuotesBffQueryHandler(IApiClient apiClient)
     : IRequestHandler<SearchQuotesBffQuery, IReadOnlyList<QuoteBffDto>>
 {
@@ -18,8 +20,11 @@ public class SearchQuotesBffQueryHandler(IApiClient apiClient)
         parts.Add($"take={request.Take}");
 
         var url = $"api/sales/quotes?{string.Join("&", parts)}";
-        var result = await apiClient.GetAsync<List<QuoteBffDto>>(url, request.BearerToken, ct);
-        return result ?? [];
+        var quotes = await apiClient.GetAsync<List<QuoteBffDto>>(url, request.BearerToken, ct) ?? [];
+        if (quotes.Count == 0) return quotes;
+
+        var nameMap = await SalesHandlerHelpers.BuildPartyNameMap(apiClient, request.BearerToken, "Customer", ct);
+        return quotes.Select(q => q with { CustomerName = nameMap.GetValueOrDefault(q.CustomerId, "—") }).ToList();
     }
 }
 
@@ -131,8 +136,22 @@ public class SearchSalesOrdersBffQueryHandler(IApiClient apiClient)
         parts.Add($"take={request.Take}");
 
         var url = $"api/sales/orders?{string.Join("&", parts)}";
-        var result = await apiClient.GetAsync<List<SalesOrderBffDto>>(url, request.BearerToken, ct);
-        return result ?? [];
+        var orders = await apiClient.GetAsync<List<SalesOrderBffDto>>(url, request.BearerToken, ct) ?? [];
+        if (orders.Count == 0) return orders;
+
+        var nameMap = await SalesHandlerHelpers.BuildPartyNameMap(apiClient, request.BearerToken, "Customer", ct);
+        return orders.Select(o => o with { CustomerName = nameMap.GetValueOrDefault(o.CustomerId, "—") }).ToList();
+    }
+}
+
+file static class SalesHandlerHelpers
+{
+    internal static async Task<Dictionary<Guid, string>> BuildPartyNameMap(
+        IApiClient apiClient, string token, string roleType, CancellationToken ct)
+    {
+        var parties = await apiClient.GetAsync<List<PartyNameDto>>(
+            $"api/parties?roleType={roleType}&isActive=true&take=500", token, ct) ?? [];
+        return parties.ToDictionary(p => p.PartyId, p => p.TradeName ?? p.LegalName);
     }
 }
 

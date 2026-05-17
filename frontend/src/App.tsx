@@ -21,6 +21,7 @@ import { TaxPage } from './features/tax/TaxPage';
 import { ReportsPage } from './features/reports/ReportsPage';
 import { ApprovalsPage } from './features/approvals/ApprovalsPage';
 import { HRPage } from './features/hr/HRPage';
+import { InvoicingPage } from './features/invoicing/InvoicingPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ export default function App() {
               {/* Finanzas */}
               <Route path="/accounting" element={<AccountingPage />} />
               <Route path="/banking" element={<BankingPage />} />
+              <Route path="/invoicing" element={<InvoicingPage />} />
               <Route path="/tax" element={<TaxPage />} />
               <Route path="/reports" element={<ReportsPage />} />
 

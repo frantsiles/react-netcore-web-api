@@ -11,6 +11,7 @@ import {
   CheckSquare,
   BarChart3,
   Users,
+  FileText,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -47,6 +48,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: 'Contabilidad', href: '/accounting', icon: BookOpen },
       { title: 'Banca', href: '/banking', icon: Landmark },
+      { title: 'Facturación', href: '/invoicing', icon: FileText },
       { title: 'Impuestos', href: '/tax', icon: PercentSquare },
       { title: 'Reportes', href: '/reports', icon: BarChart3 },
     ],

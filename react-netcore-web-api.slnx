@@ -98,4 +98,10 @@
     <Project Path="src/HR/HR.Infrastructure/HR.Infrastructure.csproj" />
     <Project Path="src/HR/HR.UnitTests/HR.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/src/Invoicing/">
+    <Project Path="src/Invoicing/Invoicing.Domain/Invoicing.Domain.csproj" />
+    <Project Path="src/Invoicing/Invoicing.Application/Invoicing.Application.csproj" />
+    <Project Path="src/Invoicing/Invoicing.Infrastructure/Invoicing.Infrastructure.csproj" />
+    <Project Path="src/Invoicing/Invoicing.UnitTests/Invoicing.UnitTests.csproj" />
+  </Folder>
 </Solution>

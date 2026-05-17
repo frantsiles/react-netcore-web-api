@@ -56,6 +56,8 @@
     <ProjectReference Include="..\..\Reporting\Reporting.Infrastructure\Reporting.Infrastructure.csproj" />
     <ProjectReference Include="..\..\HR\HR.Application\HR.Application.csproj" />
     <ProjectReference Include="..\..\HR\HR.Infrastructure\HR.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Invoicing\Invoicing.Application\Invoicing.Application.csproj" />
+    <ProjectReference Include="..\..\Invoicing\Invoicing.Infrastructure\Invoicing.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

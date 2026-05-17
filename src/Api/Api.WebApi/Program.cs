@@ -24,6 +24,8 @@ using Reporting.Application;
 using Reporting.Infrastructure;
 using HR.Application;
 using HR.Infrastructure;
+using Invoicing.Application;
+using Invoicing.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -101,6 +103,8 @@ builder.Services.AddReportingApplication();
 builder.Services.AddReportingInfrastructure(builder.Configuration);
 builder.Services.AddHRApplication();
 builder.Services.AddHRInfrastructure(builder.Configuration);
+builder.Services.AddInvoicingApplication();
+builder.Services.AddInvoicingInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

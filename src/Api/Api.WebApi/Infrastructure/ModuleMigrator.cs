@@ -1,3 +1,4 @@
+using Invoicing.Infrastructure.Persistence;
 using Accounting.Infrastructure.Persistence;
 using Approvals.Infrastructure.Persistence;
 using Banking.Infrastructure.Persistence;
@@ -31,6 +32,7 @@ internal static class ModuleMigrator
         await MigrateAsync<ApprovalsDbContext>(sp, logger);
         await MigrateAsync<HrDbContext>(sp, logger);
         await MigrateAsync<ControlPlaneDbContext>(sp, logger);
+        await MigrateAsync<InvoicingDbContext>(sp, logger);
     }
 
     private static async Task MigrateAsync<TContext>(IServiceProvider sp, ILogger logger)

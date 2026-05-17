@@ -104,6 +104,16 @@ public class SalesOrder : AggregateRoot, ITenantEntity
         RaiseDomainEvent(new SalesOrderConfirmedEvent(Id, OrderNumber, CustomerId, DateTimeOffset.UtcNow));
     }
 
+    public void MarkInvoiced()
+    {
+        if (Status != SalesOrderStatus.Confirmed && Status != SalesOrderStatus.PartiallyFulfilled
+            && Status != SalesOrderStatus.Fulfilled)
+            throw new DomainException($"Cannot invoice a sales order in '{Status}' status.");
+        Status = SalesOrderStatus.Invoiced;
+        SetUpdatedAt();
+        RaiseDomainEvent(new SalesOrderInvoicedEvent(Id, OrderNumber, CustomerId, DateTimeOffset.UtcNow));
+    }
+
     public void Cancel(string reason)
     {
         if (Status == SalesOrderStatus.Fulfilled || Status == SalesOrderStatus.Invoiced)

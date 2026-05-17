@@ -21,6 +21,15 @@ public record SalesOrderConfirmedEvent(
     public Guid EventId { get; } = Guid.NewGuid();
 }
 
+public record SalesOrderInvoicedEvent(
+    Guid SalesOrderId,
+    string OrderNumber,
+    Guid CustomerId,
+    DateTimeOffset OccurredOn) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+}
+
 public record SalesOrderCancelledEvent(
     Guid SalesOrderId,
     string OrderNumber,

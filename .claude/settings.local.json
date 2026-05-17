@@ -92,7 +92,11 @@
       "Bash(xargs ls -la)",
       "Bash(git -C /workspaces/react-netcore-web-api log --oneline -5)",
       "Bash(xargs cat)",
-      "Bash(mkdir -p /workspaces/react-netcore-web-api/.claude/skills/buyer)"
+      "Bash(mkdir -p /workspaces/react-netcore-web-api/.claude/skills/buyer)",
+      "Skill(buyer)",
+      "Skill(buyer:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(mkdir -p /workspaces/react-netcore-web-api/.claude/skills/arch)"
     ],
     "additionalDirectories": [
       "/home/frantsiles/react-netcore-web-api/src/Shared",

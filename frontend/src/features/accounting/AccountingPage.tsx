@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, BookOpen, List, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, BookOpen, List, ChevronUp, ChevronDown, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { accountingService, type AccountDto, type JournalEntryDto, type AccountType, type EntryStatus } from './accountingService'
+import { AccountPicker } from '@/components/pickers/AccountPicker'
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(n)
 
@@ -51,6 +52,16 @@ const entrySchema = z.object({
 })
 type EntryForm = z.infer<typeof entrySchema>
 
+const lineSchema = z.object({
+  accountId:   z.string().min(1, 'Seleccionar cuenta'),
+  side:        z.enum(['Debit', 'Credit']),
+  amount:      z.number().positive('> 0'),
+  description: z.string().optional(),
+})
+type LineForm = z.infer<typeof lineSchema>
+
+interface LocalLine { accountId: string; accountLabel: string; side: 'Debit' | 'Credit'; amount: number; description?: string }
+
 const aCol = createColumnHelper<AccountDto>()
 const eCol = createColumnHelper<JournalEntryDto>()
 
@@ -62,6 +73,8 @@ export function AccountingPage() {
   const [eSorting, setESorting] = useState<SortingState>([])
   const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [isEntryOpen,   setIsEntryOpen]   = useState(false)
+  const [localLines,    setLocalLines]    = useState<LocalLine[]>([])
+  const [lineAccLabel,  setLineAccLabel]  = useState<string>('')
 
   const { data: accounts, isLoading: accLoading } = useQuery({
     queryKey: ['accounts'],
@@ -81,9 +94,23 @@ export function AccountingPage() {
   })
 
   const createEntryMut = useMutation({
-    mutationFn: (v: EntryForm) => accountingService.entries.create({ ...v }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['journal-entries'] }); setIsEntryOpen(false); toast.success('Asiento creado') },
-    onError:   () => toast.error('Error al crear asiento'),
+    mutationFn: async (v: EntryForm) => {
+      const entry = await accountingService.entries.create({ ...v })
+      for (const line of localLines) {
+        await accountingService.entries.addLine(entry.id, {
+          accountId: line.accountId, side: line.side, amount: line.amount, description: line.description,
+        })
+      }
+      return entry
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['journal-entries'] })
+      setIsEntryOpen(false)
+      setLocalLines([])
+      entryForm.reset()
+      toast.success('Asiento creado')
+    },
+    onError: () => toast.error('Error al crear asiento'),
   })
 
   const postMut = useMutation({
@@ -94,6 +121,7 @@ export function AccountingPage() {
 
   const accountForm = useForm<AccountForm>({ resolver: zodResolver(accountSchema), defaultValues: { currencyCode: 'MXN' } })
   const entryForm   = useForm<EntryForm>({  resolver: zodResolver(entrySchema) })
+  const lineForm    = useForm<LineForm>({   resolver: zodResolver(lineSchema), defaultValues: { side: 'Debit' } })
 
   const accountCols = [
     aCol.accessor('accountNumber', { header: 'Número', cell: i => <span className="font-mono text-sm">{i.getValue()}</span> }),
@@ -215,10 +243,11 @@ export function AccountingPage() {
       </Dialog>
 
       {/* ── Create Journal Entry Dialog ── */}
-      <Dialog open={isEntryOpen} onOpenChange={setIsEntryOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={isEntryOpen} onOpenChange={open => { setIsEntryOpen(open); if (!open) { setLocalLines([]); lineForm.reset({ side: 'Debit' }); setLineAccLabel('') } }}>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader><DialogTitle>Nuevo Asiento Contable</DialogTitle></DialogHeader>
-          <form onSubmit={entryForm.handleSubmit(v => createEntryMut.mutate(v))} className="space-y-4">
+          <form onSubmit={entryForm.handleSubmit(v => createEntryMut.mutate(v))} className="space-y-5">
+            {/* Header fields */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Período fiscal *</Label>
@@ -234,9 +263,95 @@ export function AccountingPage() {
               <Label>Descripción *</Label>
               <Input {...entryForm.register('description')} placeholder="Pago a proveedor XYZ" />
             </div>
+
+            {/* Lines section */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Líneas de asiento</Label>
+
+              {/* Existing lines */}
+              {localLines.length > 0 && (
+                <div className="rounded-md border divide-y text-sm">
+                  {localLines.map((l, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2">
+                      <span className="flex-1 text-xs font-mono truncate">{l.accountLabel}</span>
+                      <Badge variant={l.side === 'Debit' ? 'default' : 'outline'} className="text-xs w-16 justify-center">{l.side === 'Debit' ? 'Débito' : 'Crédito'}</Badge>
+                      <span className="w-24 text-right font-medium">{new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(l.amount)}</span>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0"
+                        onClick={() => setLocalLines(prev => prev.filter((_, j) => j !== i))}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  {/* Totals row */}
+                  {(() => {
+                    const totalDebits  = localLines.reduce((s, x) => s + (x.side === 'Debit'  ? x.amount : 0), 0)
+                    const totalCredits = localLines.reduce((s, x) => s + (x.side === 'Credit' ? x.amount : 0), 0)
+                    const balanced     = Math.abs(totalDebits - totalCredits) < 0.01
+                    const fmt2 = (n: number) => new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(n)
+                    return (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 text-xs text-muted-foreground">
+                        <span className="flex-1">Totales</span>
+                        <span>Débitos: <strong>{fmt2(totalDebits)}</strong></span>
+                        <span>Créditos: <strong>{fmt2(totalCredits)}</strong></span>
+                        <Badge variant={balanced ? 'default' : 'destructive'} className="text-xs">{balanced ? '✓ Balanceado' : '✗ Desbalanceado'}</Badge>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+
+              {/* Add line form */}
+              <div className="rounded-md border p-3 space-y-2 bg-muted/20">
+                <p className="text-xs text-muted-foreground font-medium">Añadir línea</p>
+                <div className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5">
+                    <Label className="text-xs">Cuenta</Label>
+                    <AccountPicker
+                      value={lineForm.watch('accountId')}
+                      onChange={(id, label) => {
+                        lineForm.setValue('accountId', id ?? '', { shouldValidate: true })
+                        setLineAccLabel(label ?? id ?? '')
+                      }}
+                      placeholder="Seleccionar cuenta…"
+                    />
+                    {lineForm.formState.errors.accountId && <p className="text-xs text-destructive">{lineForm.formState.errors.accountId.message}</p>}
+                  </div>
+                  <div className="col-span-3">
+                    <Label className="text-xs">Debe / Haber</Label>
+                    <Select value={lineForm.watch('side')} onValueChange={v => lineForm.setValue('side', v as LineForm['side'])}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Debit">Débito</SelectItem>
+                        <SelectItem value="Credit">Crédito</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-3">
+                    <Label className="text-xs">Importe</Label>
+                    <Input type="number" step="0.01" className="h-9"
+                      {...lineForm.register('amount', { valueAsNumber: true })}
+                      placeholder="0.00" />
+                    {lineForm.formState.errors.amount && <p className="text-xs text-destructive">{lineForm.formState.errors.amount.message}</p>}
+                  </div>
+                  <div className="col-span-1">
+                    <Button type="button" size="sm" className="h-9 w-full"
+                      onClick={lineForm.handleSubmit(l => {
+                        setLocalLines(prev => [...prev, { ...l, accountLabel: lineAccLabel }])
+                        lineForm.reset({ side: lineForm.getValues('side') })
+                        setLineAccLabel('')
+                      })}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsEntryOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createEntryMut.isPending}>{createEntryMut.isPending ? 'Creando…' : 'Crear'}</Button>
+              <Button type="button" variant="outline" onClick={() => { setIsEntryOpen(false); setLocalLines([]); lineForm.reset({ side: 'Debit' }); setLineAccLabel('') }}>Cancelar</Button>
+              <Button type="submit" disabled={createEntryMut.isPending}>
+                {createEntryMut.isPending ? 'Creando…' : 'Crear asiento'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

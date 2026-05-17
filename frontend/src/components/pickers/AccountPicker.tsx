@@ -5,7 +5,7 @@ import { accountingService } from "@/features/accounting/accountingService";
 
 interface AccountPickerProps {
   value?: string | null;
-  onChange: (id: string | null) => void;
+  onChange: (id: string | null, label?: string) => void;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -35,7 +35,7 @@ export function AccountPicker({
   return (
     <EntityPicker
       value={value ?? ""}
-      onChange={(id) => onChange(id)}
+      onChange={(id, opt) => onChange(id, opt?.label)}
       options={options}
       isLoading={isLoading}
       placeholder={placeholder ?? "Seleccionar cuenta contable…"}

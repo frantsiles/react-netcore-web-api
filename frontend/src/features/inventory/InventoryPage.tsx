@@ -20,6 +20,7 @@ import {
   ChevronUp,
   ChevronDown,
   AlertTriangle,
+  FileDown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import api from "@/services/api";
 import { inventoryService } from "./inventoryService";
 import type { InventoryItemDto, WarehouseDto } from "@/types/erp/inventory";
 import { CatalogItemPicker } from "@/components/pickers/CatalogItemPicker";
@@ -335,27 +337,40 @@ export function InventoryPage() {
             Existencias por almacén
           </p>
         </div>
-        {activeTab === "items" ? (
-          <Button
-            onClick={() => {
-              receiveForm.reset({ quantity: 1 });
-              setIsReceiveOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Recibir stock
-          </Button>
-        ) : (
-          <Button
-            onClick={() => {
-              whForm.reset();
-              setIsWHOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo almacén
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {activeTab === "items" && (
+            <Button variant="outline" onClick={async () => {
+              const resp = await api.get('/bff/reports/inventory-position/export', { responseType: 'blob' })
+              const url = URL.createObjectURL(resp.data)
+              const a = document.createElement('a'); a.href = url
+              a.download = `Inventario-${new Date().toISOString().slice(0,10)}.xlsx`; a.click()
+              URL.revokeObjectURL(url)
+            }}>
+              <FileDown className="mr-2 h-4 w-4" />Exportar Excel
+            </Button>
+          )}
+          {activeTab === "items" ? (
+            <Button
+              onClick={() => {
+                receiveForm.reset({ quantity: 1 });
+                setIsReceiveOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Recibir stock
+            </Button>
+          ) : (
+            <Button
+              onClick={() => {
+                whForm.reset();
+                setIsWHOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo almacén
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

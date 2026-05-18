@@ -1,4 +1,5 @@
 using BFF.Application.Reporting;
+using BFF.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace BFF.Api.Controllers;
 [ApiController]
 [Route("bff/reports")]
 [Authorize]
-public class ReportingController(IMediator mediator) : ControllerBase
+public class ReportingController(IMediator mediator, IApiClient apiClient) : ControllerBase
 {
     [HttpGet("kpi-dashboard")]
     public async Task<IActionResult> KpiDashboard(CancellationToken ct)
@@ -32,6 +33,34 @@ public class ReportingController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> BalanceSheet(
         [FromQuery] DateTime? asOf, CancellationToken ct)
         => Ok(await mediator.Send(new GetBalanceSheetBffQuery(GetToken(), asOf), ct));
+
+    [HttpGet("inventory-position/export")]
+    public async Task<IActionResult> ExportInventory(CancellationToken ct)
+    {
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(
+            "api/reports/inventory-position/export", GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
+
+    [HttpGet("accounts-receivable-aging/export")]
+    public async Task<IActionResult> ExportArAging([FromQuery] DateTime? asOf, CancellationToken ct)
+    {
+        var url = asOf.HasValue
+            ? $"api/reports/accounts-receivable-aging/export?asOf={asOf.Value:O}"
+            : "api/reports/accounts-receivable-aging/export";
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(url, GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
+
+    [HttpGet("accounts-payable-aging/export")]
+    public async Task<IActionResult> ExportApAging([FromQuery] DateTime? asOf, CancellationToken ct)
+    {
+        var url = asOf.HasValue
+            ? $"api/reports/accounts-payable-aging/export?asOf={asOf.Value:O}"
+            : "api/reports/accounts-payable-aging/export";
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(url, GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
 
     private string GetToken()
         => HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");

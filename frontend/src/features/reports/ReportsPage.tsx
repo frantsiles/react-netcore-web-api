@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp, TrendingDown, DollarSign, ShoppingCart,
-  Package, Clock, BarChart3, FileSpreadsheet, Scale,
+  Package, Clock, BarChart3, FileSpreadsheet, Scale, FileDown,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
+import api from '@/services/api'
 import { reportsService, type BalanceSheetSectionDto } from './reportsService'
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
@@ -80,6 +81,13 @@ export function ReportsPage() {
     enabled: runBs,
   })
 
+  const downloadExcel = async (path: string, filename: string) => {
+    const resp = await api.get(path, { responseType: 'blob' })
+    const url = URL.createObjectURL(resp.data)
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -122,6 +130,15 @@ export function ReportsPage() {
           ) : (
             <p className="text-sm text-muted-foreground">No se pudo cargar el dashboard.</p>
           )}
+          <div className="flex gap-2 pt-2 border-t">
+            <span className="text-sm text-muted-foreground self-center">Exportar:</span>
+            <Button variant="outline" size="sm" onClick={() => downloadExcel('/bff/reports/accounts-receivable-aging/export', `CxC-${new Date().toISOString().slice(0,10)}.xlsx`)}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />CxC Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => downloadExcel('/bff/reports/accounts-payable-aging/export', `CxP-${new Date().toISOString().slice(0,10)}.xlsx`)}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />CxP Excel
+            </Button>
+          </div>
         </TabsContent>
 
         {/* ── Balance General ── */}

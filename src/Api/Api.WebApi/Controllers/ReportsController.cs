@@ -1,11 +1,12 @@
+using Api.WebApi.Infrastructure.Excel;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Reporting.Application.Queries.AccountsPayableReceivable;
+using Reporting.Application.Queries.BalanceSheet;
 using Reporting.Application.Queries.InventoryPosition;
 using Reporting.Application.Queries.KpiDashboard;
 using Reporting.Application.Queries.ProfitAndLoss;
-using Reporting.Application.Queries.BalanceSheet;
 using Reporting.Application.Queries.RevenueTimeSeries;
 using Reporting.Application.Queries.TrialBalance;
 
@@ -52,4 +53,31 @@ public class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> BalanceSheet(
         [FromQuery] DateTime? asOf, CancellationToken ct)
         => Ok(await sender.Send(new BalanceSheetQuery(asOf ?? DateTime.UtcNow), ct));
+
+    [HttpGet("inventory-position/export")]
+    public async Task<IActionResult> ExportInventory(CancellationToken ct)
+    {
+        var report = await sender.Send(new InventoryPositionQuery(), ct);
+        var bytes = ExcelService.GenerateInventoryExcel(report);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"Inventario-{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    [HttpGet("accounts-receivable-aging/export")]
+    public async Task<IActionResult> ExportArAging([FromQuery] DateTime? asOf, CancellationToken ct)
+    {
+        var report = await sender.Send(new AccountsReceivableAgingQuery(asOf ?? DateTime.UtcNow), ct);
+        var bytes = ExcelService.GenerateAgingExcel(report);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"CxC-{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    [HttpGet("accounts-payable-aging/export")]
+    public async Task<IActionResult> ExportApAging([FromQuery] DateTime? asOf, CancellationToken ct)
+    {
+        var report = await sender.Send(new AccountsPayableAgingQuery(asOf ?? DateTime.UtcNow), ct);
+        var bytes = ExcelService.GenerateAgingExcel(report);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"CxP-{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
 }

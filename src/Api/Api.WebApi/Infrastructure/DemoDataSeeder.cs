@@ -18,6 +18,8 @@ using HR.Domain.Employees;
 using HR.Infrastructure.Persistence;
 using Inventory.Domain.Warehouses;
 using Inventory.Infrastructure.Persistence;
+using Invoicing.Domain.Invoices;
+using Invoicing.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Parties.Domain.Parties;
 using Parties.Domain.ValueObjects;
@@ -90,6 +92,62 @@ public static class DemoDataSeeder
 
         if (seeded > 0)
             logger.LogInformation("Demo seed completed: {Count} new companies added.", seeded);
+
+        await PatchInvoicesAsync(sp, logger);
+    }
+
+    // Idempotent invoice patch — runs even for existing tenants that predate invoice seeding.
+    private static async Task PatchInvoicesAsync(IServiceProvider sp, ILogger logger)
+    {
+        var invoicing = sp.GetRequiredService<InvoicingDbContext>();
+        var salesDb = sp.GetRequiredService<SalesDbContext>();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var patched = 0;
+
+        foreach (var (tenantId, prefix, currency) in new (Guid, string, string)[]
+        {
+            (TechSolId,     "FAC-TS", "EUR"),
+            (NexoId,        "FAC-NX", "MXN"),
+            (BellaModaId,   "FAC-BM", "ARS"),
+            (MesaGourmetId, "FAC-MG", "EUR"),
+            (MercaMasId,    "FAC-MM", "CRC"),
+        })
+        {
+            if (await invoicing.Invoices.AnyAsync(i => i.TenantId == tenantId)) continue;
+
+            var orders = await salesDb.SalesOrders
+                .Where(o => o.TenantId == tenantId)
+                .OrderBy(o => o.OrderNumber)
+                .ToListAsync();
+
+            if (orders.Count == 0) continue;
+
+            var num = 1;
+            foreach (var order in orders.Take(4))
+            {
+                var issueOffset = -20 + (num * 5);
+                var dueOffset = issueOffset + 30;
+                var inv = Invoice.Create(
+                    $"{prefix}-{num:000}", order.CustomerId, currency,
+                    today.AddDays(issueOffset), today.AddDays(dueOffset), order.Id);
+                inv.TenantId = tenantId;
+                foreach (var line in order.Lines)
+                    inv.AddLine(InvoiceLine.Create(
+                        line.ItemName, line.Quantity,
+                        Money.Of(line.UnitPrice.Amount, currency),
+                        line.DiscountPercent, line.CatalogItemId, line.SKU));
+                inv.Issue();
+                if (num == 1)
+                    inv.RecordPayment(inv.TotalAmount, today.AddDays(issueOffset + 10), $"SEED-PAY-{num}");
+                await invoicing.Invoices.AddAsync(inv);
+                num++;
+            }
+            await invoicing.SaveChangesAsync();
+            patched++;
+        }
+
+        if (patched > 0)
+            logger.LogInformation("Invoice patch: {Count} tenant(s) updated with demo invoices.", patched);
     }
 
     // ── TechSol Distribuciones S.A. ──────────────────────────────────────────
@@ -324,6 +382,44 @@ public static class DemoDataSeeder
         await accounting.JournalEntries.AddRangeAsync(je1, je2, je3, je4);
         accounting.Accounts.UpdateRange(acctBank, acctAR, acctInv, acctAP, acctCap, acctRev, acctCOGS, acctSalary, acctRent);
         await accounting.SaveChangesAsync();
+
+        // Invoicing — facturas basadas en órdenes de venta
+        var invoicing = sp.GetRequiredService<InvoicingDbContext>();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // FAC-TS-001: teclado + mouse (de OV-TS-001) — Paid
+        var inv1 = Invoice.Create("FAC-TS-001", customers[1].Id, "EUR",
+            today.AddDays(-10), today.AddDays(20), so1.Id);
+        inv1.TenantId = tid;
+        inv1.AddLine(InvoiceLine.Create(items[2].Name, 10, Money.Of(89m, "EUR"), catalogItemId: items[2].Id, sku: items[2].SKU));
+        inv1.AddLine(InvoiceLine.Create(items[3].Name, 10, Money.Of(35m, "EUR"), catalogItemId: items[3].Id, sku: items[3].SKU));
+        inv1.Issue();
+        inv1.RecordPayment(inv1.TotalAmount, today.AddDays(-5), "TRANSF-TS-001");
+
+        // FAC-TS-002: laptops (de OV-TS-002) — Issued (pendiente de pago)
+        var inv2 = Invoice.Create("FAC-TS-002", customers[3].Id, "EUR",
+            today.AddDays(-5), today.AddDays(25), so2.Id);
+        inv2.TenantId = tid;
+        inv2.AddLine(InvoiceLine.Create(items[0].Name, 2, Money.Of(1_200m, "EUR"), catalogItemId: items[0].Id, sku: items[0].SKU));
+        inv2.Issue();
+
+        // FAC-TS-003: switches + routers — Draft
+        var inv3 = Invoice.Create("FAC-TS-003", customers[0].Id, "EUR",
+            today, today.AddDays(30));
+        inv3.TenantId = tid;
+        inv3.AddLine(InvoiceLine.Create(items[6].Name, 3, Money.Of(320m, "EUR"), catalogItemId: items[6].Id, sku: items[6].SKU));
+        inv3.AddLine(InvoiceLine.Create(items[5].Name, 2, Money.Of(75m, "EUR"), catalogItemId: items[5].Id, sku: items[5].SKU));
+
+        // FAC-TS-004: monitores 4K — Partially paid
+        var inv4 = Invoice.Create("FAC-TS-004", customers[4].Id, "EUR",
+            today.AddDays(-20), today.AddDays(10));
+        inv4.TenantId = tid;
+        inv4.AddLine(InvoiceLine.Create(items[1].Name, 5, Money.Of(450m, "EUR"), catalogItemId: items[1].Id, sku: items[1].SKU));
+        inv4.Issue();
+        inv4.RecordPayment(Money.Of(900m, "EUR"), today.AddDays(-10), "PARTIAL-001");
+
+        await invoicing.Invoices.AddRangeAsync(inv1, inv2, inv3, inv4);
+        await invoicing.SaveChangesAsync();
     }
 
     // ── Nexo Consulting Group ─────────────────────────────────────────────────
@@ -483,6 +579,35 @@ public static class DemoDataSeeder
         await accountingNx.JournalEntries.AddRangeAsync(jeNx1, jeNx2, jeNx3);
         accountingNx.Accounts.UpdateRange(nxBank, nxAR, nxAP, nxCap, nxRev, nxSalary);
         await accountingNx.SaveChangesAsync();
+
+        // Invoicing — honorarios profesionales
+        var invoicingNx = sp.GetRequiredService<InvoicingDbContext>();
+        var todayNx = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // FAC-NX-001: consultoría estratégica Grupo Azteca Q1 — Paid
+        var nxInv1 = Invoice.Create("FAC-NX-001", customers[0].Id, "MXN",
+            todayNx.AddDays(-20), todayNx.AddDays(10), soNx1.Id);
+        nxInv1.TenantId = tid;
+        nxInv1.AddLine(InvoiceLine.Create(services[0].Name, 80, Money.Of(2_500m, "MXN"), catalogItemId: services[0].Id, sku: services[0].SKU));
+        nxInv1.AddLine(InvoiceLine.Create(services[4].Name, 3, Money.Of(45_000m, "MXN"), catalogItemId: services[4].Id, sku: services[4].SKU));
+        nxInv1.Issue();
+        nxInv1.RecordPayment(nxInv1.TotalAmount, todayNx.AddDays(-10), "SPEI-NX-001");
+
+        // FAC-NX-002: consultoría Banco Regional — Issued
+        var nxInv2 = Invoice.Create("FAC-NX-002", customers[1].Id, "MXN",
+            todayNx.AddDays(-8), todayNx.AddDays(22));
+        nxInv2.TenantId = tid;
+        nxInv2.AddLine(InvoiceLine.Create(services[0].Name, 40, Money.Of(2_500m, "MXN"), catalogItemId: services[0].Id, sku: services[0].SKU));
+        nxInv2.Issue();
+
+        // FAC-NX-003: auditoría Seguros del Pacífico — Draft
+        var nxInv3 = Invoice.Create("FAC-NX-003", customers[2].Id, "MXN",
+            todayNx, todayNx.AddDays(30));
+        nxInv3.TenantId = tid;
+        nxInv3.AddLine(InvoiceLine.Create(services[1].Name, 2, Money.Of(85_000m, "MXN"), catalogItemId: services[1].Id, sku: services[1].SKU));
+
+        await invoicingNx.Invoices.AddRangeAsync(nxInv1, nxInv2, nxInv3);
+        await invoicingNx.SaveChangesAsync();
     }
 
     // ── Bella Moda Retail S.A. ────────────────────────────────────────────────
@@ -575,6 +700,151 @@ public static class DemoDataSeeder
             Contract.Create(tid, vend2.Id, "CT-BM-003", new DateOnly(2022, 11, 1), 95_000m, "ARS"),
             Contract.Create(tid, repos.Id, "CT-BM-004", new DateOnly(2023, 4, 1), 60_000m, "ARS"));
         await hr.SaveChangesAsync();
+
+        // Sales — cotizaciones y órdenes de venta moda
+        var salesBm = sp.GetRequiredService<SalesDbContext>();
+        var todayBm = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var qBm1 = Quote.Create("COT-BM-001", customers[0].Id,
+            todayBm.AddDays(30), "ARS", "AR");
+        qBm1.TenantId = tid;
+        qBm1.AddLine(QuoteLine.Create(items[0].Id, items[0].SKU, items[0].Name, 50, Money.Of(18_500m, "ARS")));
+        qBm1.AddLine(QuoteLine.Create(items[1].Id, items[1].SKU, items[1].Name, 40, Money.Of(12_200m, "ARS")));
+        qBm1.Send();
+        qBm1.Accept();
+        qBm1.MarkConvertedToOrder();
+
+        var qBm2 = Quote.Create("COT-BM-002", customers[1].Id,
+            todayBm.AddDays(20), "ARS", "AR");
+        qBm2.TenantId = tid;
+        qBm2.AddLine(QuoteLine.Create(items[3].Id, items[3].SKU, items[3].Name, 20, Money.Of(28_000m, "ARS")));
+        qBm2.AddLine(QuoteLine.Create(items[4].Id, items[4].SKU, items[4].Name, 15, Money.Of(42_000m, "ARS")));
+        qBm2.Send();
+
+        var qBm3 = Quote.Create("COT-BM-003", customers[3].Id,
+            todayBm.AddDays(45), "ARS", "AR");
+        qBm3.TenantId = tid;
+        qBm3.AddLine(QuoteLine.Create(items[5].Id, items[5].SKU, items[5].Name, 10, Money.Of(85_000m, "ARS")));
+        qBm3.AddLine(QuoteLine.Create(items[6].Id, items[6].SKU, items[6].Name, 25, Money.Of(9_500m, "ARS")));
+
+        await salesBm.Quotes.AddRangeAsync(qBm1, qBm2, qBm3);
+
+        var soBm1 = SalesOrder.Create("OV-BM-001", customers[0].Id,
+            todayBm.AddDays(-12), "ARS", "AR",
+            requestedDeliveryDate: todayBm.AddDays(3), originQuoteId: qBm1.Id);
+        soBm1.TenantId = tid;
+        soBm1.AddLine(SalesOrderLine.Create(items[0].Id, items[0].SKU, items[0].Name, 50, Money.Of(18_500m, "ARS")));
+        soBm1.AddLine(SalesOrderLine.Create(items[1].Id, items[1].SKU, items[1].Name, 40, Money.Of(12_200m, "ARS")));
+        soBm1.Confirm();
+
+        var soBm2 = SalesOrder.Create("OV-BM-002", customers[2].Id,
+            todayBm.AddDays(-4), "ARS", "AR");
+        soBm2.TenantId = tid;
+        soBm2.AddLine(SalesOrderLine.Create(items[7].Id, items[7].SKU, items[7].Name, 30, Money.Of(4_800m, "ARS")));
+        soBm2.AddLine(SalesOrderLine.Create(items[8].Id, items[8].SKU, items[8].Name, 20, Money.Of(11_500m, "ARS")));
+        soBm2.Confirm();
+
+        await salesBm.SalesOrders.AddRangeAsync(soBm1, soBm2);
+        await salesBm.SaveChangesAsync();
+
+        // Purchasing
+        var purchasingBm = sp.GetRequiredService<PurchasingDbContext>();
+        var poBm1 = PurchaseOrder.Create(tid, "OC-BM-001", suppliers[0].Id, "ARS", "AR",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(10));
+        poBm1.AddLine(items[0].Id, items[0].SKU, items[0].Name, 100, Money.Of(9_200m, "ARS"));
+        poBm1.AddLine(items[1].Id, items[1].SKU, items[1].Name, 80, Money.Of(6_100m, "ARS"));
+        poBm1.Send();
+        poBm1.Confirm();
+
+        var poBm2 = PurchaseOrder.Create(tid, "OC-BM-002", suppliers[1].Id, "ARS", "AR",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(7));
+        poBm2.AddLine(items[4].Id, items[4].SKU, items[4].Name, 30, Money.Of(22_000m, "ARS"));
+        poBm2.Send();
+
+        await purchasingBm.PurchaseOrders.AddRangeAsync(poBm1, poBm2);
+        await purchasingBm.SaveChangesAsync();
+
+        // Accounting
+        var accountingBm = sp.GetRequiredService<AccountingDbContext>();
+        var bmBank  = Account.Create(tid, "1100", "Banco Nación — cuenta corriente ARS", AccountType.Asset,     "ARS");
+        var bmAR    = Account.Create(tid, "1200", "Cuentas por Cobrar",                  AccountType.Asset,     "ARS");
+        var bmInv   = Account.Create(tid, "1300", "Inventario Productos",                AccountType.Asset,     "ARS");
+        var bmAP    = Account.Create(tid, "2100", "Cuentas por Pagar",                   AccountType.Liability, "ARS");
+        var bmCap   = Account.Create(tid, "3000", "Capital Social",                      AccountType.Equity,    "ARS");
+        var bmRev   = Account.Create(tid, "4000", "Ventas",                              AccountType.Revenue,   "ARS");
+        var bmCOGS  = Account.Create(tid, "5000", "Costo de Mercadería Vendida",         AccountType.Expense,   "ARS");
+        var bmSal   = Account.Create(tid, "6100", "Sueldos y Cargas Sociales",           AccountType.Expense,   "ARS");
+        await accountingBm.Accounts.AddRangeAsync(bmBank, bmAR, bmInv, bmAP, bmCap, bmRev, bmCOGS, bmSal);
+        await accountingBm.SaveChangesAsync();
+
+        var jeBm1 = JournalEntry.Create(tid, "JE-BM-001",
+            DateTime.UtcNow.AddDays(-45), "Saldo inicial");
+        jeBm1.AddLine(bmBank.Id, bmBank.AccountNumber, bmBank.Name, EntrySide.Debit,  1_200_000m);
+        jeBm1.AddLine(bmCap.Id,  bmCap.AccountNumber,  bmCap.Name,  EntrySide.Credit, 1_200_000m);
+        var jeBm1Lines = jeBm1.Post();
+        foreach (var l in jeBm1Lines)
+        {
+            if (l.AccountId == bmBank.Id) bmBank.ApplyDebit(l.Amount);
+            else bmCap.ApplyCredit(l.Amount);
+        }
+
+        var jeBm2 = JournalEntry.Create(tid, "JE-BM-002",
+            DateTime.UtcNow.AddDays(-12), "Venta Tiendas El Ángel");
+        jeBm2.AddLine(bmAR.Id,  bmAR.AccountNumber,  bmAR.Name,  EntrySide.Debit,  1_413_000m);
+        jeBm2.AddLine(bmRev.Id, bmRev.AccountNumber, bmRev.Name, EntrySide.Credit, 1_413_000m);
+        var jeBm2Lines = jeBm2.Post();
+        foreach (var l in jeBm2Lines)
+        {
+            if (l.AccountId == bmAR.Id) bmAR.ApplyDebit(l.Amount);
+            else bmRev.ApplyCredit(l.Amount);
+        }
+
+        var jeBm3 = JournalEntry.Create(tid, "JE-BM-003",
+            DateTime.UtcNow.AddDays(-8), "Cobro Tiendas El Ángel");
+        jeBm3.AddLine(bmBank.Id, bmBank.AccountNumber, bmBank.Name, EntrySide.Debit,  480_000m);
+        jeBm3.AddLine(bmAR.Id,   bmAR.AccountNumber,   bmAR.Name,   EntrySide.Credit, 480_000m);
+        var jeBm3Lines = jeBm3.Post();
+        foreach (var l in jeBm3Lines)
+        {
+            if (l.AccountId == bmBank.Id) bmBank.ApplyDebit(l.Amount);
+            else bmAR.ApplyCredit(l.Amount);
+        }
+
+        var jeBm4 = JournalEntry.Create(tid, "JE-BM-004",
+            DateTime.UtcNow.AddDays(-5), "Pago Textil Andina");
+        jeBm4.AddLine(bmAP.Id,   bmAP.AccountNumber,   bmAP.Name,   EntrySide.Debit,  320_000m);
+        jeBm4.AddLine(bmBank.Id, bmBank.AccountNumber, bmBank.Name, EntrySide.Credit, 320_000m);
+        var jeBm4Lines = jeBm4.Post();
+        foreach (var l in jeBm4Lines)
+        {
+            if (l.AccountId == bmAP.Id) bmAP.ApplyDebit(l.Amount);
+            else bmBank.ApplyCredit(l.Amount);
+        }
+
+        await accountingBm.JournalEntries.AddRangeAsync(jeBm1, jeBm2, jeBm3, jeBm4);
+        accountingBm.Accounts.UpdateRange(bmBank, bmAR, bmInv, bmAP, bmCap, bmRev, bmCOGS, bmSal);
+        await accountingBm.SaveChangesAsync();
+
+        // Invoicing
+        var invoicingBm = sp.GetRequiredService<InvoicingDbContext>();
+
+        var bmInv1 = Invoice.Create("FAC-BM-001", customers[0].Id, "ARS",
+            todayBm.AddDays(-12), todayBm.AddDays(18), soBm1.Id);
+        bmInv1.TenantId = tid;
+        bmInv1.AddLine(InvoiceLine.Create(items[0].Name, 50, Money.Of(18_500m, "ARS"), catalogItemId: items[0].Id, sku: items[0].SKU));
+        bmInv1.AddLine(InvoiceLine.Create(items[1].Name, 40, Money.Of(12_200m, "ARS"), catalogItemId: items[1].Id, sku: items[1].SKU));
+        bmInv1.Issue();
+        bmInv1.RecordPayment(Money.Of(480_000m, "ARS"), todayBm.AddDays(-8), "TRANSF-BM-001");
+
+        var bmInv2 = Invoice.Create("FAC-BM-002", customers[2].Id, "ARS",
+            todayBm.AddDays(-4), todayBm.AddDays(26), soBm2.Id);
+        bmInv2.TenantId = tid;
+        bmInv2.AddLine(InvoiceLine.Create(items[7].Name, 30, Money.Of(4_800m, "ARS"), catalogItemId: items[7].Id, sku: items[7].SKU));
+        bmInv2.AddLine(InvoiceLine.Create(items[8].Name, 20, Money.Of(11_500m, "ARS"), catalogItemId: items[8].Id, sku: items[8].SKU));
+        bmInv2.Issue();
+
+        await invoicingBm.Invoices.AddRangeAsync(bmInv1, bmInv2);
+        await invoicingBm.SaveChangesAsync();
     }
 
     // ── La Mesa Gourmet S.R.L. ────────────────────────────────────────────────
@@ -671,6 +941,126 @@ public static class DemoDataSeeder
             Contract.Create(tid, cam1.Id, "CT-MG-004", new DateOnly(2018, 9, 1), 1_800m, "EUR"),
             Contract.Create(tid, cam2.Id, "CT-MG-005", new DateOnly(2023, 6, 1), 1_200m, "EUR"));
         await hr.SaveChangesAsync();
+
+        // Sales — catering y menús para empresas
+        var salesMg = sp.GetRequiredService<SalesDbContext>();
+        var todayMg = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var qMg1 = Quote.Create("COT-MG-001", customers[1].Id,
+            todayMg.AddDays(15), "EUR", "ES");
+        qMg1.TenantId = tid;
+        qMg1.AddLine(QuoteLine.Create(items[3].Id, items[3].SKU, items[3].Name, 30, Money.Of(68m, "EUR")));
+        qMg1.AddLine(QuoteLine.Create(items[4].Id, items[4].SKU, items[4].Name, 8, Money.Of(320m, "EUR")));
+        qMg1.Send();
+        qMg1.Accept();
+        qMg1.MarkConvertedToOrder();
+
+        var qMg2 = Quote.Create("COT-MG-002", customers[0].Id,
+            todayMg.AddDays(30), "EUR", "ES");
+        qMg2.TenantId = tid;
+        qMg2.AddLine(QuoteLine.Create(items[0].Id, items[0].SKU, items[0].Name, 100, Money.Of(18m, "EUR")));
+        qMg2.AddLine(QuoteLine.Create(items[1].Id, items[1].SKU, items[1].Name, 100, Money.Of(12m, "EUR")));
+        qMg2.Send();
+
+        await salesMg.Quotes.AddRangeAsync(qMg1, qMg2);
+
+        var soMg1 = SalesOrder.Create("OV-MG-001", customers[1].Id,
+            todayMg.AddDays(-7), "EUR", "ES",
+            requestedDeliveryDate: todayMg.AddDays(8), originQuoteId: qMg1.Id);
+        soMg1.TenantId = tid;
+        soMg1.AddLine(SalesOrderLine.Create(items[3].Id, items[3].SKU, items[3].Name, 30, Money.Of(68m, "EUR")));
+        soMg1.AddLine(SalesOrderLine.Create(items[4].Id, items[4].SKU, items[4].Name, 8, Money.Of(320m, "EUR")));
+        soMg1.Confirm();
+
+        await salesMg.SalesOrders.AddAsync(soMg1);
+        await salesMg.SaveChangesAsync();
+
+        // Purchasing — ingredientes de temporada
+        var purchasingMg = sp.GetRequiredService<PurchasingDbContext>();
+        var poMg1 = PurchaseOrder.Create(tid, "OC-MG-001", suppliers[0].Id, "EUR", "ES",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(2));
+        poMg1.AddLine(items[7].Id, items[7].SKU, items[7].Name, 10, Money.Of(18m, "EUR"));
+        poMg1.AddLine(items[8].Id, items[8].SKU, items[8].Name, 8, Money.Of(22m, "EUR"));
+        poMg1.Send();
+        poMg1.Confirm();
+
+        var poMg2 = PurchaseOrder.Create(tid, "OC-MG-002", suppliers[2].Id, "EUR", "ES",
+            expectedDeliveryDate: DateTime.UtcNow.AddDays(4));
+        poMg2.AddLine(items[5].Id, items[5].SKU, items[5].Name, 20, Money.Of(12m, "EUR"));
+        poMg2.Send();
+
+        await purchasingMg.PurchaseOrders.AddRangeAsync(poMg1, poMg2);
+        await purchasingMg.SaveChangesAsync();
+
+        // Accounting
+        var accountingMg = sp.GetRequiredService<AccountingDbContext>();
+        var mgBank  = Account.Create(tid, "1100", "CaixaBank — cuenta corriente EUR", AccountType.Asset,     "EUR");
+        var mgAR    = Account.Create(tid, "1200", "Cuentas por Cobrar",               AccountType.Asset,     "EUR");
+        var mgInv   = Account.Create(tid, "1300", "Inventario Cocina",                AccountType.Asset,     "EUR");
+        var mgAP    = Account.Create(tid, "2100", "Cuentas por Pagar Proveedores",    AccountType.Liability, "EUR");
+        var mgCap   = Account.Create(tid, "3000", "Capital Social",                   AccountType.Equity,    "EUR");
+        var mgRev   = Account.Create(tid, "4000", "Ingresos Restauración",            AccountType.Revenue,   "EUR");
+        var mgCOGS  = Account.Create(tid, "5000", "Coste de Materias Primas",         AccountType.Expense,   "EUR");
+        var mgSal   = Account.Create(tid, "6100", "Sueldos y Seguridad Social",       AccountType.Expense,   "EUR");
+        await accountingMg.Accounts.AddRangeAsync(mgBank, mgAR, mgInv, mgAP, mgCap, mgRev, mgCOGS, mgSal);
+        await accountingMg.SaveChangesAsync();
+
+        var jeMg1 = JournalEntry.Create(tid, "JE-MG-001",
+            DateTime.UtcNow.AddDays(-90), "Saldo inicial");
+        jeMg1.AddLine(mgBank.Id, mgBank.AccountNumber, mgBank.Name, EntrySide.Debit,  30_000m);
+        jeMg1.AddLine(mgCap.Id,  mgCap.AccountNumber,  mgCap.Name,  EntrySide.Credit, 30_000m);
+        var jeMg1Lines = jeMg1.Post();
+        foreach (var l in jeMg1Lines)
+        {
+            if (l.AccountId == mgBank.Id) mgBank.ApplyDebit(l.Amount);
+            else mgCap.ApplyCredit(l.Amount);
+        }
+
+        var jeMg2 = JournalEntry.Create(tid, "JE-MG-002",
+            DateTime.UtcNow.AddDays(-7), "Recaudación semana");
+        jeMg2.AddLine(mgBank.Id, mgBank.AccountNumber, mgBank.Name, EntrySide.Debit,  8_400m);
+        jeMg2.AddLine(mgRev.Id,  mgRev.AccountNumber,  mgRev.Name,  EntrySide.Credit, 8_400m);
+        var jeMg2Lines = jeMg2.Post();
+        foreach (var l in jeMg2Lines)
+        {
+            if (l.AccountId == mgBank.Id) mgBank.ApplyDebit(l.Amount);
+            else mgRev.ApplyCredit(l.Amount);
+        }
+
+        var jeMg3 = JournalEntry.Create(tid, "JE-MG-003",
+            DateTime.UtcNow.AddDays(-5), "Compras semana");
+        jeMg3.AddLine(mgCOGS.Id, mgCOGS.AccountNumber, mgCOGS.Name, EntrySide.Debit,  2_000m);
+        jeMg3.AddLine(mgBank.Id, mgBank.AccountNumber,  mgBank.Name, EntrySide.Credit, 2_000m);
+        var jeMg3Lines = jeMg3.Post();
+        foreach (var l in jeMg3Lines)
+        {
+            if (l.AccountId == mgCOGS.Id) mgCOGS.ApplyDebit(l.Amount);
+            else mgBank.ApplyCredit(l.Amount);
+        }
+
+        await accountingMg.JournalEntries.AddRangeAsync(jeMg1, jeMg2, jeMg3);
+        accountingMg.Accounts.UpdateRange(mgBank, mgAR, mgInv, mgAP, mgCap, mgRev, mgCOGS, mgSal);
+        await accountingMg.SaveChangesAsync();
+
+        // Invoicing — menú degustación y catering
+        var invoicingMg = sp.GetRequiredService<InvoicingDbContext>();
+
+        var mgInv1 = Invoice.Create("FAC-MG-001", customers[1].Id, "EUR",
+            todayMg.AddDays(-7), todayMg.AddDays(8), soMg1.Id);
+        mgInv1.TenantId = tid;
+        mgInv1.AddLine(InvoiceLine.Create(items[3].Name, 30, Money.Of(68m, "EUR"), catalogItemId: items[3].Id, sku: items[3].SKU));
+        mgInv1.AddLine(InvoiceLine.Create(items[4].Name, 8, Money.Of(320m, "EUR"), catalogItemId: items[4].Id, sku: items[4].SKU));
+        mgInv1.Issue();
+        mgInv1.RecordPayment(mgInv1.TotalAmount, todayMg.AddDays(-2), "TRANSFER-MG-001");
+
+        var mgInv2 = Invoice.Create("FAC-MG-002", customers[0].Id, "EUR",
+            todayMg.AddDays(-3), todayMg.AddDays(12));
+        mgInv2.TenantId = tid;
+        mgInv2.AddLine(InvoiceLine.Create(items[0].Name, 100, Money.Of(18m, "EUR"), catalogItemId: items[0].Id, sku: items[0].SKU));
+        mgInv2.Issue();
+
+        await invoicingMg.Invoices.AddRangeAsync(mgInv1, mgInv2);
+        await invoicingMg.SaveChangesAsync();
     }
 
     // ── MercaMás S.A. (Costa Rica) ───────────────────────────────────────────
@@ -982,6 +1372,47 @@ public static class DemoDataSeeder
         await accountingMm.JournalEntries.AddRangeAsync(jeMm1, jeMm2, jeMm3, jeMm4, jeMm5);
         accountingMm.Accounts.UpdateRange(mmBank, mmBankUSD, mmAR, mmInv, mmAP, mmCap, mmRev, mmCOGS, mmSalary, mmRent);
         await accountingMm.SaveChangesAsync();
+
+        // Invoicing — B2B mayoreo Costa Rica
+        var invoicingMm = sp.GetRequiredService<InvoicingDbContext>();
+        var todayMm = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // FAC-MM-001: canasta básica Hoteles Playa Dorada — Paid
+        var mmFac1 = Invoice.Create("FAC-MM-001", customers[0].Id, "CRC",
+            todayMm.AddDays(-15), todayMm.AddDays(15), soMm1.Id);
+        mmFac1.TenantId = tid;
+        mmFac1.AddLine(InvoiceLine.Create(items[0].Name, 200, Money.Of(2_500m, "CRC"), catalogItemId: items[0].Id, sku: items[0].SKU));
+        mmFac1.AddLine(InvoiceLine.Create(items[1].Name, 100, Money.Of(1_800m, "CRC"), catalogItemId: items[1].Id, sku: items[1].SKU));
+        mmFac1.AddLine(InvoiceLine.Create(items[5].Name, 150, Money.Of(1_200m, "CRC"), catalogItemId: items[5].Id, sku: items[5].SKU));
+        mmFac1.Issue();
+        mmFac1.RecordPayment(mmFac1.TotalAmount, todayMm.AddDays(-7), "SINPE-MM-001");
+
+        // FAC-MM-002: electrodomésticos Corporación Universitaria — Issued
+        var mmFac2 = Invoice.Create("FAC-MM-002", customers[1].Id, "CRC",
+            todayMm.AddDays(-7), todayMm.AddDays(23), soMm2.Id);
+        mmFac2.TenantId = tid;
+        mmFac2.AddLine(InvoiceLine.Create(items[6].Name, 10, Money.Of(195_000m, "CRC"), catalogItemId: items[6].Id, sku: items[6].SKU));
+        mmFac2.AddLine(InvoiceLine.Create(items[7].Name, 20, Money.Of(42_000m, "CRC"), catalogItemId: items[7].Id, sku: items[7].SKU));
+        mmFac2.Issue();
+
+        // FAC-MM-003: canasta básica Club Mayoreo del Pacífico — Draft
+        var mmFac3 = Invoice.Create("FAC-MM-003", customers[4].Id, "CRC",
+            todayMm.AddDays(-3), todayMm.AddDays(27));
+        mmFac3.TenantId = tid;
+        mmFac3.AddLine(InvoiceLine.Create(items[0].Name, 100, Money.Of(2_500m, "CRC"), catalogItemId: items[0].Id, sku: items[0].SKU));
+        mmFac3.AddLine(InvoiceLine.Create(items[2].Name, 80, Money.Of(1_650m, "CRC"), catalogItemId: items[2].Id, sku: items[2].SKU));
+
+        // FAC-MM-004: artículos limpieza Municipalidad San José — Paid
+        var mmFac4 = Invoice.Create("FAC-MM-004", customers[2].Id, "CRC",
+            todayMm.AddDays(-25), todayMm.AddDays(-5));
+        mmFac4.TenantId = tid;
+        mmFac4.AddLine(InvoiceLine.Create(items[10].Name, 200, Money.Of(3_200m, "CRC"), catalogItemId: items[10].Id, sku: items[10].SKU));
+        mmFac4.AddLine(InvoiceLine.Create(items[11].Name, 150, Money.Of(4_800m, "CRC"), catalogItemId: items[11].Id, sku: items[11].SKU));
+        mmFac4.Issue();
+        mmFac4.RecordPayment(mmFac4.TotalAmount, todayMm.AddDays(-10), "SINPE-MM-002");
+
+        await invoicingMm.Invoices.AddRangeAsync(mmFac1, mmFac2, mmFac3, mmFac4);
+        await invoicingMm.SaveChangesAsync();
     }
 
     // ── Factory helpers ───────────────────────────────────────────────────────

@@ -4,7 +4,10 @@ using Approvals.Domain.ApprovalRequests;
 using Approvals.Infrastructure.Persistence;
 using Banking.Infrastructure.Persistence;
 using Inventory.Infrastructure.Persistence;
+using Invoicing.Domain.Invoices;
+using Invoicing.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Parties.Infrastructure.Persistence;
 using Purchasing.Domain.PurchaseOrders;
 using Purchasing.Infrastructure.Persistence;
 using Reporting.Application.Common.Dtos;
@@ -20,7 +23,9 @@ public class ReportingStore(
     PurchasingDbContext purchasingDb,
     SalesDbContext salesDb,
     BankingDbContext bankingDb,
-    ApprovalsDbContext approvalsDb)
+    ApprovalsDbContext approvalsDb,
+    InvoicingDbContext invoicingDb,
+    PartiesDbContext partiesDb)
     : IReportingStore
 {
     public async Task<TrialBalanceReportDto> GetTrialBalanceAsync(string fiscalPeriod, CancellationToken ct = default)
@@ -92,16 +97,24 @@ public class ReportingStore(
 
     public async Task<AgingReportDto> GetAccountsReceivableAgingAsync(DateTime asOf, CancellationToken ct = default)
     {
-        var orders = await salesDb.SalesOrders.AsNoTracking()
-            .Where(o => o.Status == SalesOrderStatus.Confirmed || o.Status == SalesOrderStatus.PartiallyFulfilled)
+        var invoices = await invoicingDb.Invoices.AsNoTracking()
+            .Where(i => i.Status == InvoiceStatus.Issued || i.Status == InvoiceStatus.PartiallyPaid)
             .ToListAsync(ct);
 
-        var lines = orders.Select(o => new AgingLineDto(
-            o.OrderNumber, o.CustomerId.ToString(),
-            o.OrderDate.ToDateTime(TimeOnly.MinValue),
-            o.OrderDate.AddDays(30).ToDateTime(TimeOnly.MinValue),
-            o.Total.Amount,
-            Math.Max(0, (int)(asOf - o.OrderDate.AddDays(30).ToDateTime(TimeOnly.MinValue)).TotalDays)
+        var customerIds = invoices.Select(i => i.CustomerId).Distinct().ToList();
+        var parties = await partiesDb.Parties.AsNoTracking()
+            .Where(p => customerIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.LegalName, p.TradeName })
+            .ToListAsync(ct);
+        var nameMap = parties.ToDictionary(p => p.Id, p => p.TradeName ?? p.LegalName);
+
+        var lines = invoices.Select(i => new AgingLineDto(
+            i.InvoiceNumber,
+            nameMap.GetValueOrDefault(i.CustomerId, i.CustomerId.ToString()[..8]),
+            i.IssueDate.ToDateTime(TimeOnly.MinValue),
+            i.DueDate.ToDateTime(TimeOnly.MinValue),
+            i.BalanceDue.Amount,
+            Math.Max(0, (int)(asOf - i.DueDate.ToDateTime(TimeOnly.MinValue)).TotalDays)
         )).ToList();
 
         return BuildAgingReport("AR", asOf, lines);
@@ -113,8 +126,16 @@ public class ReportingStore(
             .Where(o => o.Status == PurchaseOrderStatus.Confirmed || o.Status == PurchaseOrderStatus.PartiallyReceived)
             .ToListAsync(ct);
 
+        var supplierIds = orders.Select(o => o.SupplierId).Distinct().ToList();
+        var suppliers = await partiesDb.Parties.AsNoTracking()
+            .Where(p => supplierIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.LegalName, p.TradeName })
+            .ToListAsync(ct);
+        var nameMap = suppliers.ToDictionary(p => p.Id, p => p.TradeName ?? p.LegalName);
+
         var lines = orders.Select(o => new AgingLineDto(
-            o.PoNumber, o.SupplierId.ToString(),
+            o.PoNumber,
+            nameMap.GetValueOrDefault(o.SupplierId, o.SupplierId.ToString()[..8]),
             o.CreatedAt, o.ExpectedDeliveryDate ?? o.CreatedAt.AddDays(30),
             o.Total.Amount,
             Math.Max(0, (int)(asOf - (o.ExpectedDeliveryDate ?? o.CreatedAt.AddDays(30))).TotalDays)
@@ -152,9 +173,9 @@ public class ReportingStore(
             .Where(o => o.Status == PurchaseOrderStatus.Confirmed || o.Status == PurchaseOrderStatus.PartiallyReceived)
             .SumAsync(o => (decimal?)o.Total.Amount ?? 0m, ct);
 
-        var totalReceivables = await salesDb.SalesOrders.AsNoTracking()
-            .Where(o => o.Status == SalesOrderStatus.Confirmed || o.Status == SalesOrderStatus.PartiallyFulfilled)
-            .SumAsync(o => (decimal?)o.Total.Amount ?? 0m, ct);
+        var totalReceivables = await invoicingDb.Invoices.AsNoTracking()
+            .Where(i => i.Status == InvoiceStatus.Issued || i.Status == InvoiceStatus.PartiallyPaid)
+            .SumAsync(i => (decimal?)i.BalanceDue.Amount ?? 0m, ct);
 
         return new KpiDashboardDto(
             DateTime.UtcNow, totalRevenue, totalCogs, Math.Round(grossMargin, 1),

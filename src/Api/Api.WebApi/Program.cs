@@ -28,6 +28,8 @@ using Invoicing.Application;
 using Invoicing.Infrastructure;
 using FiscalCR.Application;
 using FiscalCR.Infrastructure;
+using Payroll.Application;
+using Payroll.Infrastructure;
 using Api.Infrastructure;
 using Api.Infrastructure.Persistence;
 using Api.WebApi.Hubs;
@@ -109,6 +111,8 @@ builder.Services.AddInvoicingApplication();
 builder.Services.AddInvoicingInfrastructure(builder.Configuration);
 builder.Services.AddFiscalCrApplication();
 builder.Services.AddFiscalCrInfrastructure(builder.Configuration);
+builder.Services.AddPayrollApplication();
+builder.Services.AddPayrollInfrastructure(builder.Configuration);
 
 // SignalR — Azure SignalR Service compatible
 var azureSignalRConnectionString = builder.Configuration["AzureSignalR:ConnectionString"];

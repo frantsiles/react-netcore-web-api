@@ -1,5 +1,6 @@
 using Invoicing.Application.DTOs;
 using Parties.Application.Common.Dtos;
+using Payroll.Application.DTOs;
 using Purchasing.Application.Common.Dtos;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -144,6 +145,152 @@ public static class PdfService
                     po.Lines.Select(l => new LineItem(l.Sku, l.ItemName, l.QuantityOrdered,
                         l.UnitCostAmount, 0, l.LineTotal, l.CurrencyCode)).ToList(),
                     po.CurrencyCode, po.Subtotal, 0m, po.Total));
+
+                page.Footer().Element(BuildFooter);
+            });
+        }).GeneratePdf();
+    }
+
+    // ── Paystub ───────────────────────────────────────────────────────────────
+
+    public static byte[] GeneratePaystubPdf(PayrollRunDto run, PayrollEntryDto entry, string companyName)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(36);
+                page.DefaultTextStyle(s => s.FontSize(10));
+
+                // Header
+                page.Header().Column(col =>
+                {
+                    col.Item().Background("#1e3a5f").Padding(14).Row(row =>
+                    {
+                        row.RelativeItem().Column(inner =>
+                        {
+                            inner.Item().Text(companyName).FontSize(16).Bold().FontColor(Colors.White);
+                            inner.Item().Text("RECIBO DE PAGO").FontSize(11).FontColor("#a8c8e8");
+                        });
+                        row.ConstantItem(200).Column(inner =>
+                        {
+                            inner.Item().AlignRight().Text(run.RunNumber).FontSize(9).FontColor(Colors.White);
+                            inner.Item().AlignRight()
+                                .Text($"Período: {run.PeriodStart} → {run.PeriodEnd}")
+                                .FontSize(9).FontColor("#a8c8e8");
+                            inner.Item().AlignRight()
+                                .Text(run.PeriodType == "Monthly" ? "Mensual" : "Quincenal")
+                                .FontSize(9).FontColor("#a8c8e8");
+                        });
+                    });
+
+                    col.Item().Background("#f0f4f8").Padding(10).Row(row =>
+                    {
+                        row.RelativeItem().Column(inner =>
+                        {
+                            inner.Item().Text("EMPLEADO").FontSize(8).FontColor(Colors.Grey.Darken2);
+                            inner.Item().Text(entry.EmployeeName).FontSize(12).Bold();
+                            inner.Item().Text($"N° {entry.EmployeeNumber}").FontSize(9).FontColor(Colors.Grey.Darken1);
+                        });
+                        row.ConstantItem(160).Column(inner =>
+                        {
+                            inner.Item().AlignRight().Text("Moneda").FontSize(8).FontColor(Colors.Grey.Darken2);
+                            inner.Item().AlignRight().Text(run.CurrencyCode).FontSize(11).Bold();
+                        });
+                    });
+
+                    col.Item().PaddingBottom(6);
+                });
+
+                // Content
+                page.Content().Column(col =>
+                {
+                    // ── Ingresos ──────────────────────────────────────────────
+                    col.Item().Text("INGRESOS").FontSize(9).Bold().FontColor("#1e3a5f");
+                    col.Item().PaddingBottom(4).Table(t =>
+                    {
+                        t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(); });
+                        void Row2(string label, decimal value, bool bold = false)
+                        {
+                            var bg = Colors.White;
+                            var el = t.Cell().Background(bg).PaddingVertical(4).PaddingHorizontal(6)
+                                .Text(label).FontSize(9);
+                            if (bold) el.Bold();
+                            var er = t.Cell().Background(bg).PaddingVertical(4).PaddingHorizontal(6)
+                                .AlignRight().Text(Fmt(value, run.CurrencyCode)).FontSize(9);
+                            if (bold) er.Bold();
+                        }
+                        Row2("Salario base", entry.BaseSalary);
+                        if (entry.OvertimePay > 0) Row2("Horas extra", entry.OvertimePay);
+                        t.Cell().ColumnSpan(2).BorderTop(1).BorderColor(Colors.Grey.Lighten2)
+                            .Background("#f7f9fc").PaddingVertical(5).PaddingHorizontal(6)
+                            .Text("Salario bruto").FontSize(9).Bold();
+                        t.Cell().Background("#f7f9fc").PaddingVertical(5).PaddingHorizontal(6)
+                            .AlignRight().Text(Fmt(entry.TotalGross, run.CurrencyCode)).FontSize(9).Bold();
+                    });
+
+                    col.Item().PaddingTop(10).Text("DEDUCCIONES DEL EMPLEADO").FontSize(9).Bold().FontColor("#1e3a5f");
+                    col.Item().PaddingBottom(4).Table(t =>
+                    {
+                        t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(); });
+                        void DeductRow(string label, string detail, decimal value)
+                        {
+                            t.Cell().Background(Colors.White).PaddingVertical(4).PaddingHorizontal(6)
+                                .Column(c2 =>
+                                {
+                                    c2.Item().Text(label).FontSize(9);
+                                    c2.Item().Text(detail).FontSize(8).FontColor(Colors.Grey.Medium);
+                                });
+                            t.Cell().Background(Colors.White).PaddingVertical(4).PaddingHorizontal(6)
+                                .AlignRight().Text($"- {Fmt(value, run.CurrencyCode)}").FontSize(9).FontColor(Colors.Red.Darken2);
+                        }
+                        DeductRow("CCSS (empleado)", "9.17% SEM+IVM+otras", entry.CcssEmployee);
+                        DeductRow("Banco Popular", "1.00%", entry.BancoPopular);
+                        if (entry.IncomeTax > 0)
+                            DeductRow("Impuesto sobre la renta", "Art. 33 LISR", entry.IncomeTax);
+                        t.Cell().ColumnSpan(2).BorderTop(1).BorderColor(Colors.Grey.Lighten2)
+                            .Background("#fff5f5").PaddingVertical(5).PaddingHorizontal(6)
+                            .Text("Total deducciones").FontSize(9).Bold().FontColor(Colors.Red.Darken2);
+                        t.Cell().Background("#fff5f5").PaddingVertical(5).PaddingHorizontal(6)
+                            .AlignRight().Text($"- {Fmt(entry.TotalDeductions, run.CurrencyCode)}").FontSize(9).Bold().FontColor(Colors.Red.Darken2);
+                    });
+
+                    // ── Salario Neto ──────────────────────────────────────────
+                    col.Item().PaddingTop(10)
+                        .Background("#1e3a5f").Padding(10).Row(row =>
+                        {
+                            row.RelativeItem().Text("SALARIO NETO A PAGAR").FontSize(12).Bold().FontColor(Colors.White);
+                            row.ConstantItem(180).AlignRight()
+                                .Text(Fmt(entry.NetPay, run.CurrencyCode)).FontSize(14).Bold().FontColor("#a8c8e8");
+                        });
+
+                    // ── Cargas Patronales (informativo) ───────────────────────
+                    col.Item().PaddingTop(12).Text("CARGAS PATRONALES (informativo)").FontSize(9).Bold().FontColor(Colors.Grey.Darken1);
+                    col.Item().PaddingBottom(4).Table(t =>
+                    {
+                        t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(); });
+                        void PatRow(string label, string detail, decimal value)
+                        {
+                            t.Cell().Background(Colors.Grey.Lighten5).PaddingVertical(4).PaddingHorizontal(6)
+                                .Column(c2 =>
+                                {
+                                    c2.Item().Text(label).FontSize(9).FontColor(Colors.Grey.Darken2);
+                                    c2.Item().Text(detail).FontSize(8).FontColor(Colors.Grey.Medium);
+                                });
+                            t.Cell().Background(Colors.Grey.Lighten5).PaddingVertical(4).PaddingHorizontal(6)
+                                .AlignRight().Text(Fmt(value, run.CurrencyCode)).FontSize(9).FontColor(Colors.Grey.Darken2);
+                        }
+                        PatRow("CCSS patronal", "26.67%", entry.CcssEmployer);
+                        PatRow("INS patronal", "1.00%", entry.InsEmployer);
+                        PatRow("Fondo capitalización laboral", "3.00%", entry.Fcl);
+                        t.Cell().ColumnSpan(2).BorderTop(1).BorderColor(Colors.Grey.Lighten2)
+                            .Background(Colors.Grey.Lighten4).PaddingVertical(5).PaddingHorizontal(6)
+                            .Text("Costo total para la empresa").FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+                        t.Cell().Background(Colors.Grey.Lighten4).PaddingVertical(5).PaddingHorizontal(6)
+                            .AlignRight().Text(Fmt(entry.TotalLaborCost, run.CurrencyCode)).FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+                    });
+                });
 
                 page.Footer().Element(BuildFooter);
             });

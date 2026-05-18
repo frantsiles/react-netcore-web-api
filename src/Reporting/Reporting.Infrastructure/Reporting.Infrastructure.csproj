@@ -16,5 +16,7 @@
     <ProjectReference Include="..\..\Sales\Sales.Infrastructure\Sales.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Banking\Banking.Infrastructure\Banking.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Approvals\Approvals.Infrastructure\Approvals.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Invoicing\Invoicing.Infrastructure\Invoicing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Parties\Parties.Infrastructure\Parties.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

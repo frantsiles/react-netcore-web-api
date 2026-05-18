@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, Users, Building2, MoreHorizontal, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Users, Building2, MoreHorizontal, ChevronUp, ChevronDown, ListChecks, CheckCircle2, ChevronRight, Download } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { hrService, type EmployeeDto, type DepartmentDto, type EmployeeStatus } from './hrService'
+import { payrollService, type PayrollRunDto } from './payrollService'
 
 const STATUS_LABELS: Record<EmployeeStatus, string> = { Active: 'Activo', OnLeave: 'Permiso', Terminated: 'Terminado' }
 const STATUS_VARIANT: Record<EmployeeStatus, 'success' | 'default' | 'secondary'> = {
@@ -55,8 +56,17 @@ const deptSchema = z.object({
 })
 type DeptForm = z.infer<typeof deptSchema>
 
+const runSchema = z.object({
+  periodType:  z.enum(['Monthly', 'Biweekly']),
+  periodStart: z.string().min(1, 'Requerido'),
+  periodEnd:   z.string().min(1, 'Requerido'),
+  currencyCode: z.string().length(3, '3 letras').default('CRC'),
+})
+type RunForm = z.infer<typeof runSchema>
+
 const eCol = createColumnHelper<EmployeeDto>()
 const dCol = createColumnHelper<DepartmentDto>()
+const pCol = createColumnHelper<PayrollRunDto>()
 
 export function HRPage() {
   const qc = useQueryClient()
@@ -68,7 +78,15 @@ export function HRPage() {
   const [isHireOpen,      setIsHireOpen]      = useState(false)
   const [isTerminateOpen, setIsTerminateOpen]  = useState(false)
   const [isDeptOpen,      setIsDeptOpen]       = useState(false)
+  const [isRunOpen,       setIsRunOpen]        = useState(false)
   const [selectedEmpId,   setSelectedEmpId]    = useState<string | null>(null)
+  const [selectedRun,     setSelectedRun]      = useState<PayrollRunDto | null>(null)
+
+  const { data: payrollRuns, isLoading: runLoading } = useQuery({
+    queryKey: ['payrollRuns'],
+    queryFn: () => payrollService.runs.list(),
+    enabled: activeTab === 'payroll',
+  })
 
   const { data: employees, isLoading: empLoading } = useQuery({
     queryKey: ['employees', statusFilter],
@@ -99,9 +117,22 @@ export function HRPage() {
     onError: () => toast.error('Error al crear departamento'),
   })
 
+  const createRunMut = useMutation({
+    mutationFn: payrollService.runs.create,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payrollRuns'] }); setIsRunOpen(false); toast.success('Planilla generada') },
+    onError: () => toast.error('Error al generar planilla'),
+  })
+
+  const confirmRunMut = useMutation({
+    mutationFn: (id: string) => payrollService.runs.confirm(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payrollRuns'] }); toast.success('Planilla confirmada') },
+    onError: () => toast.error('Error al confirmar planilla'),
+  })
+
   const hireForm      = useForm<HireForm>({      resolver: zodResolver(hireSchema),     defaultValues: { employmentType: 'FullTime' } })
   const terminateForm = useForm<TerminateForm>({ resolver: zodResolver(terminateSchema) })
   const deptForm      = useForm<DeptForm>({      resolver: zodResolver(deptSchema) })
+  const runForm       = useForm<RunForm>({       resolver: zodResolver(runSchema),      defaultValues: { periodType: 'Monthly', currencyCode: 'CRC' } })
 
   const openTerminateDialog = (id: string) => {
     setSelectedEmpId(id)
@@ -142,8 +173,39 @@ export function HRPage() {
     dCol.accessor('isActive', { header: 'Estado', cell: i => <Badge variant={i.getValue() ? 'success' : 'secondary'}>{i.getValue() ? 'Activo' : 'Inactivo'}</Badge> }),
   ]
 
+  const RUN_STATUS: Record<string, string> = { Draft: 'Borrador', Confirmed: 'Confirmada', Paid: 'Pagada' }
+  const RUN_VARIANT: Record<string, 'default' | 'success' | 'secondary'> = { Draft: 'secondary', Confirmed: 'default', Paid: 'success' }
+  const fmt = (n: number) => n.toLocaleString('es-CR', { style: 'currency', currency: 'CRC', minimumFractionDigits: 0 })
+
+  const runCols = [
+    pCol.accessor('runNumber', { header: 'N° Planilla', cell: i => <span className="font-mono text-sm">{i.getValue()}</span> }),
+    pCol.accessor('periodType', { header: 'Período', cell: i => <span className="text-sm">{i.getValue() === 'Monthly' ? 'Mensual' : 'Quincenal'}</span> }),
+    pCol.accessor('periodStart', { header: 'Inicio', cell: i => <span className="text-sm">{i.getValue()}</span> }),
+    pCol.accessor('periodEnd', { header: 'Fin', cell: i => <span className="text-sm">{i.getValue()}</span> }),
+    pCol.accessor('employeeCount', { header: 'Empleados', cell: i => <span className="text-sm text-center">{i.getValue()}</span> }),
+    pCol.accessor('totalNet', { header: 'Total Neto', cell: i => <span className="text-sm font-medium">{fmt(i.getValue())}</span> }),
+    pCol.accessor('totalEmployerCost', { header: 'Costo Patronal', cell: i => <span className="text-sm text-muted-foreground">{fmt(i.getValue())}</span> }),
+    pCol.accessor('status', { header: 'Estado', cell: i => <Badge variant={RUN_VARIANT[i.getValue()]}>{RUN_STATUS[i.getValue()] ?? i.getValue()}</Badge> }),
+    pCol.display({
+      id: 'actions', header: '',
+      cell: ({ row }) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedRun(row.original)} title="Ver detalle">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          {row.original.status === 'Draft' && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => confirmRunMut.mutate(row.original.id)} title="Confirmar">
+              <CheckCircle2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ),
+    }),
+  ]
+
   const eTable = useReactTable({ data: employees ?? [], columns: empCols, state: { sorting: eSorting }, onSortingChange: setESorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
   const dTable = useReactTable({ data: departments ?? [], columns: deptCols, state: { sorting: dSorting }, onSortingChange: setDSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
+  const pTable = useReactTable({ data: payrollRuns ?? [], columns: runCols, getCoreRowModel: getCoreRowModel() })
 
   return (
     <div className="space-y-6">
@@ -152,13 +214,19 @@ export function HRPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Recursos Humanos</h1>
           <p className="text-sm text-muted-foreground">Empleados y estructura organizacional</p>
         </div>
-        {activeTab === 'employees' ? (
+        {activeTab === 'employees' && (
           <Button onClick={() => { hireForm.reset({ employmentType: 'FullTime' }); setIsHireOpen(true) }}>
             <Plus className="mr-2 h-4 w-4" />Contratar empleado
           </Button>
-        ) : (
+        )}
+        {activeTab === 'departments' && (
           <Button onClick={() => { deptForm.reset(); setIsDeptOpen(true) }}>
             <Plus className="mr-2 h-4 w-4" />Nuevo departamento
+          </Button>
+        )}
+        {activeTab === 'payroll' && (
+          <Button onClick={() => { runForm.reset({ periodType: 'Monthly', currencyCode: 'CRC' }); setIsRunOpen(true) }}>
+            <Plus className="mr-2 h-4 w-4" />Correr planilla
           </Button>
         )}
       </div>
@@ -167,6 +235,7 @@ export function HRPage() {
         <TabsList>
           <TabsTrigger value="employees"><Users className="mr-2 h-4 w-4" />Empleados</TabsTrigger>
           <TabsTrigger value="departments"><Building2 className="mr-2 h-4 w-4" />Departamentos</TabsTrigger>
+          <TabsTrigger value="payroll"><ListChecks className="mr-2 h-4 w-4" />Planilla</TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees" className="space-y-4">
@@ -187,7 +256,79 @@ export function HRPage() {
         <TabsContent value="departments" className="space-y-4">
           <SimpleTable table={dTable} columns={deptCols} isLoading={deptLoading} empty="No hay departamentos registrados" />
         </TabsContent>
+
+        <TabsContent value="payroll" className="space-y-4">
+          <SimpleTable table={pTable} columns={runCols} isLoading={runLoading} empty="No hay planillas. Haga clic en 'Correr planilla' para generar la primera." />
+        </TabsContent>
       </Tabs>
+
+      {/* Payroll Run Detail Sheet */}
+      {selectedRun && (
+        <Dialog open={!!selectedRun} onOpenChange={() => setSelectedRun(null)}>
+          <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{selectedRun.runNumber} — Detalle de planilla</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+              <div><span className="text-muted-foreground">Período: </span>{selectedRun.periodStart} → {selectedRun.periodEnd}</div>
+              <div><span className="text-muted-foreground">Empleados: </span>{selectedRun.employeeCount}</div>
+              <div><span className="text-muted-foreground">Estado: </span><Badge variant={RUN_VARIANT[selectedRun.status]}>{RUN_STATUS[selectedRun.status]}</Badge></div>
+              <div><span className="text-muted-foreground">Total Bruto: </span><strong>{selectedRun.totalGross.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</strong></div>
+              <div><span className="text-muted-foreground">Total Neto: </span><strong>{selectedRun.totalNet.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</strong></div>
+              <div><span className="text-muted-foreground">Costo Total: </span><strong>{selectedRun.totalEmployerCost.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</strong></div>
+            </div>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Empleado</TableHead>
+                    <TableHead className="text-right">Bruto</TableHead>
+                    <TableHead className="text-right">CCSS</TableHead>
+                    <TableHead className="text-right">Renta</TableHead>
+                    <TableHead className="text-right">B.Popular</TableHead>
+                    <TableHead className="text-right">Neto</TableHead>
+                    <TableHead className="text-right">C.Patronal</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedRun.entries.map(e => (
+                    <TableRow key={e.id}>
+                      <TableCell><div className="font-medium text-sm">{e.employeeName}</div><div className="text-xs text-muted-foreground">{e.employeeNumber}</div></TableCell>
+                      <TableCell className="text-right text-sm">{e.totalGross.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right text-sm text-red-600">{e.ccssEmployee.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right text-sm text-red-600">{e.incomeTax.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right text-sm text-red-600">{e.bancoPopular.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold">{e.netPay.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">{e.totalEmployerContribution.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7"
+                          title="Descargar recibo"
+                          onClick={() => payrollService.runs.downloadPaystub(
+                            selectedRun.id, e.id,
+                            `recibo-${selectedRun.runNumber}-${e.employeeNumber}.pdf`
+                          )}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <DialogFooter>
+              {selectedRun.status === 'Draft' && (
+                <Button onClick={() => { confirmRunMut.mutate(selectedRun.id); setSelectedRun(null) }} disabled={confirmRunMut.isPending}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />Confirmar planilla
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setSelectedRun(null)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Hire Dialog */}
       <Dialog open={isHireOpen} onOpenChange={setIsHireOpen}>
@@ -271,6 +412,43 @@ export function HRPage() {
               <Button type="submit" variant="destructive" disabled={terminateMut.isPending}>
                 {terminateMut.isPending ? 'Procesando…' : 'Terminar contrato'}
               </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Payroll Run Dialog */}
+      <Dialog open={isRunOpen} onOpenChange={setIsRunOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Correr Planilla</DialogTitle></DialogHeader>
+          <form onSubmit={runForm.handleSubmit(v => createRunMut.mutate(v))} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Tipo de período *</Label>
+              <Select onValueChange={v => runForm.setValue('periodType', v as RunForm['periodType'])} defaultValue="Monthly">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Monthly">Mensual</SelectItem>
+                  <SelectItem value="Biweekly">Quincenal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Inicio del período *</Label>
+                <Input type="date" {...runForm.register('periodStart')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Fin del período *</Label>
+                <Input type="date" {...runForm.register('periodEnd')} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Moneda</Label>
+              <Input {...runForm.register('currencyCode')} placeholder="CRC" maxLength={3} className="uppercase" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsRunOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={createRunMut.isPending}>{createRunMut.isPending ? 'Generando…' : 'Generar planilla'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -13,4 +13,5 @@ public interface IApiClient
     Task PatchAsync(string path, string bearerToken, CancellationToken ct = default);
     Task DeleteAsync(string path, string bearerToken, CancellationToken ct = default);
     Task<TResponse?> PutAsync<TRequest, TResponse>(string path, TRequest body, string bearerToken, CancellationToken ct = default);
+    Task<(byte[] Content, string ContentType, string FileName)> GetFileAsync(string path, string bearerToken, CancellationToken ct = default);
 }

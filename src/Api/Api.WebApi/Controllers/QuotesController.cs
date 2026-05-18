@@ -1,6 +1,8 @@
+using Api.WebApi.Infrastructure.Pdf;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Parties.Application.Queries.GetPartyById;
 using Sales.Application.Orders.Commands.CreateSalesOrder;
 using Sales.Application.Quotes.Commands.AcceptQuote;
 using Sales.Application.Quotes.Commands.AddQuoteLine;
@@ -86,6 +88,15 @@ public class QuotesController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new ConvertQuoteToOrderCommand(id,
             body.RequestedDeliveryDate, body.Notes), ct);
         return CreatedAtAction("GetById", "SalesOrders", new { id = result.Id }, result);
+    }
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var quote = await mediator.Send(new GetQuoteByIdQuery(id), ct);
+        var customer = await mediator.Send(new GetPartyByIdQuery(quote.CustomerId), ct);
+        var bytes = PdfService.GenerateQuotePdf(quote, customer);
+        return File(bytes, "application/pdf", $"COT-{quote.QuoteNumber}.pdf");
     }
 }
 

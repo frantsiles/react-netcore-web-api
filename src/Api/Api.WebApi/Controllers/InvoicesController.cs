@@ -1,9 +1,11 @@
+using Api.WebApi.Infrastructure.Pdf;
 using Invoicing.Application.Commands;
 using Invoicing.Application.Queries;
 using Invoicing.Domain.Invoices;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Parties.Application.Queries.GetPartyById;
 
 namespace Api.WebApi.Controllers;
 
@@ -67,6 +69,16 @@ public class InvoicesController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new CancelInvoiceCommand(id, req.Reason), ct);
         return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var invoice = await mediator.Send(new GetInvoiceByIdQuery(id), ct);
+        if (invoice is null) return NotFound();
+        var customer = await mediator.Send(new GetPartyByIdQuery(invoice.CustomerId), ct);
+        var bytes = PdfService.GenerateInvoicePdf(invoice, customer);
+        return File(bytes, "application/pdf", $"FAC-{invoice.InvoiceNumber}.pdf");
     }
 }
 

@@ -1,6 +1,8 @@
+using Api.WebApi.Infrastructure.Pdf;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Parties.Application.Queries.GetPartyById;
 using Purchasing.Application.PurchaseOrders.Commands.AddPurchaseOrderLine;
 using Purchasing.Application.PurchaseOrders.Commands.CancelPurchaseOrder;
 using Purchasing.Application.PurchaseOrders.Commands.ConfirmPurchaseOrder;
@@ -70,6 +72,15 @@ public class PurchaseOrdersController(ISender sender) : ControllerBase
     [HttpPost("{id:guid}/cancel")]
     public async Task<IActionResult> Cancel(Guid id, [FromBody] CancelRequest req, CancellationToken ct)
         => Ok(await sender.Send(new CancelPurchaseOrderCommand(id, req.Reason), ct));
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var po = await sender.Send(new GetPurchaseOrderByIdQuery(id), ct);
+        var supplier = await sender.Send(new GetPartyByIdQuery(po.SupplierId), ct);
+        var bytes = PdfService.GeneratePurchaseOrderPdf(po, supplier);
+        return File(bytes, "application/pdf", $"OC-{po.PoNumber}.pdf");
+    }
 }
 
 public record AddPoLineRequest(

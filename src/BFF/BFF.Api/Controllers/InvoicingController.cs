@@ -1,4 +1,5 @@
 using BFF.Application.Invoicing;
+using BFF.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace BFF.Api.Controllers;
 [ApiController]
 [Route("bff/invoicing/invoices")]
 [Authorize]
-public class InvoicingController(IMediator mediator) : ControllerBase
+public class InvoicingController(IMediator mediator, IApiClient apiClient) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Search(
@@ -51,6 +52,14 @@ public class InvoicingController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Cancel(
         Guid id, [FromBody] CancelInvoiceBffRequest req, CancellationToken ct)
         => Ok(await mediator.Send(new CancelInvoiceBffCommand(GetToken(), id, req.Reason), ct));
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(
+            $"api/invoicing/invoices/{id}/pdf", GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
 
     private string GetToken()
         => HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");

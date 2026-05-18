@@ -1,4 +1,5 @@
 using BFF.Application.Purchasing;
+using BFF.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace BFF.Api.Controllers;
 [ApiController]
 [Route("bff/purchasing/orders")]
 [Authorize]
-public class PurchasingController(IMediator mediator) : ControllerBase
+public class PurchasingController(IMediator mediator, IApiClient apiClient) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Search(
@@ -56,6 +57,14 @@ public class PurchasingController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Cancel(
         Guid id, [FromBody] CancelPoBffRequest req, CancellationToken ct)
         => Ok(await mediator.Send(new CancelPurchaseOrderBffCommand(GetToken(), id, req.Reason), ct));
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(
+            $"api/purchasing/orders/{id}/pdf", GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
 
     private string GetToken()
         => HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");

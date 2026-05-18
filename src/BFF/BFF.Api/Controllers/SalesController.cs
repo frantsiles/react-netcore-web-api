@@ -1,4 +1,5 @@
 using BFF.Application.Sales;
+using BFF.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace BFF.Api.Controllers;
 [ApiController]
 [Route("bff/sales/quotes")]
 [Authorize]
-public class SalesQuotesController(IMediator mediator) : ControllerBase
+public class SalesQuotesController(IMediator mediator, IApiClient apiClient) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Search(
@@ -59,6 +60,14 @@ public class SalesQuotesController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new ConvertQuoteToOrderBffCommand(
             GetToken(), id, req.RequestedDeliveryDate, req.Notes), ct);
         return Created(string.Empty, result);
+    }
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(
+            $"api/sales/quotes/{id}/pdf", GetToken(), ct);
+        return File(bytes, contentType, fileName);
     }
 
     private string GetToken()

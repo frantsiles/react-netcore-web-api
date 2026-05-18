@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import {
   Plus, MoreHorizontal, PackageCheck,
-  ShoppingBag, ChevronUp, ChevronDown,
+  ShoppingBag, ChevronUp, ChevronDown, FileDown,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
+import api from '@/services/api'
 import { purchasingService } from './purchasingService'
 import type { PurchaseOrderDto, PurchaseOrderStatus } from '@/types/erp/purchasing'
 import { PartyPicker } from '@/components/pickers/PartyPicker'
@@ -184,6 +185,14 @@ export function PurchasingPage() {
     setIsCancelOpen(true)
   }
 
+  const downloadPdf = async (path: string, filename: string) => {
+    const resp = await api.get(path, { responseType: 'blob' })
+    const url = URL.createObjectURL(resp.data)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ── Columns ────────────────────────────────────────────────────────────────
 
   const columns = [
@@ -249,6 +258,10 @@ export function PurchasingPage() {
                     Cancelar
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => downloadPdf(`/bff/purchasing/orders/${o.id}/pdf`, `OC-${o.poNumber}.pdf`)}>
+                  <FileDown className="mr-2 h-4 w-4" />Descargar PDF
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

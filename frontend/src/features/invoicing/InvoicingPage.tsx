@@ -12,7 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, FileText, DollarSign, ChevronUp, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Plus, FileText, DollarSign, ChevronUp, ChevronDown, MoreHorizontal, FileDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -197,6 +198,14 @@ export function InvoicingPage() {
     },
   });
 
+  const downloadPdf = async (path: string, filename: string) => {
+    const resp = await api.get(path, { responseType: 'blob' })
+    const url = URL.createObjectURL(resp.data)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const convertForm = useForm<ConvertForm>({ resolver: zodResolver(convertSchema) });
   const [orderCurrency, setOrderCurrency] = useState<string | undefined>();
   const paymentForm = useForm<PaymentForm>({
@@ -252,6 +261,10 @@ export function InvoicingPage() {
                   Cancel
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => downloadPdf(`/bff/invoicing/invoices/${inv.id}/pdf`, `FAC-${inv.invoiceNumber}.pdf`)}>
+                <FileDown className="mr-2 h-4 w-4" />Descargar PDF
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );

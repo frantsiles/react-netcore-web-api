@@ -16,6 +16,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="QuestPDF" Version="2025.4.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
     <!-- OpenTelemetry — traces + metrics + OTLP export -->
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />

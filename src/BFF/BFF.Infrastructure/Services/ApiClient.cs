@@ -78,6 +78,20 @@ public class ApiClient(IHttpClientFactory httpClientFactory) : IApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task<(byte[] Content, string ContentType, string FileName)> GetFileAsync(
+        string path, string bearerToken, CancellationToken ct = default)
+    {
+        var client = CreateAuthorizedClient(bearerToken);
+        var response = await client.GetAsync(path, ct);
+        response.EnsureSuccessStatusCode();
+        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+        var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+            ?? response.Content.Headers.ContentDisposition?.FileName
+            ?? "download";
+        return (bytes, contentType, fileName);
+    }
+
     private HttpClient CreateAuthorizedClient(string bearerToken)
     {
         var client = httpClientFactory.CreateClient("BackendApi");

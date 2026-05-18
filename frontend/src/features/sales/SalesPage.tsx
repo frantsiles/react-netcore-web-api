@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import {
   Plus, MoreHorizontal, ArrowRightCircle,
-  ShoppingCart, FileText, ChevronUp, ChevronDown,
+  ShoppingCart, FileText, ChevronUp, ChevronDown, FileDown,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
+import api from '@/services/api'
 import { salesService } from './salesService'
 import type { QuoteDto, SalesOrderDto, QuoteStatus, SalesOrderStatus } from '@/types/erp/sales'
 import { PartyPicker } from '@/components/pickers/PartyPicker'
@@ -201,6 +202,14 @@ export function SalesPage() {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  const downloadPdf = async (path: string, filename: string) => {
+    const resp = await api.get(path, { responseType: 'blob' })
+    const url = URL.createObjectURL(resp.data)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const openLineDialog = (quoteId: string) => {
     setSelectedQuoteId(quoteId)
     lineForm.reset({ currencyCode: 'USD', discountPercent: 0, quantity: 1, unitPrice: 0 })
@@ -275,6 +284,10 @@ export function SalesPage() {
                   <DropdownMenuItem onClick={() => acceptMut.mutate(q.id)}>Aceptar</DropdownMenuItem>
                   <DropdownMenuItem className="text-destructive" onClick={() => rejectMut.mutate(q.id)}>Rechazar</DropdownMenuItem>
                 </>}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => downloadPdf(`/bff/sales/quotes/${q.id}/pdf`, `COT-${q.quoteNumber}.pdf`)}>
+                  <FileDown className="mr-2 h-4 w-4" />Descargar PDF
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

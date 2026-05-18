@@ -2,13 +2,15 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { navGroups } from './nav-items'
 import { Separator } from '@/components/ui/separator'
-import { Building2 } from 'lucide-react'
+import { Building2, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface SidebarProps {
   collapsed?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ collapsed = false }: SidebarProps) {
+export function Sidebar({ collapsed = false, onClose }: SidebarProps) {
   const location = useLocation()
 
   return (
@@ -20,11 +22,22 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 px-4 border-b">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary shrink-0">
           <Building2 className="h-5 w-5 text-primary-foreground" />
         </div>
         {!collapsed && (
-          <span className="font-semibold text-sm tracking-tight">Demo ERP</span>
+          <span className="font-semibold text-sm tracking-tight flex-1">Demo ERP</span>
+        )}
+        {/* Close button on mobile */}
+        {onClose && !collapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 md:hidden"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         )}
       </div>
 
@@ -44,6 +57,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                   <li key={item.href}>
                     <NavLink
                       to={item.href}
+                      onClick={onClose}
                       className={cn(
                         'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
                         isActive

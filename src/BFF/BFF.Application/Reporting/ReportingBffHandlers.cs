@@ -46,3 +46,16 @@ public class GetRevenueTimeSeriesBffQueryHandler(IApiClient apiClient)
         return result!;
     }
 }
+
+public class GetBalanceSheetBffQueryHandler(IApiClient apiClient)
+    : IRequestHandler<GetBalanceSheetBffQuery, BalanceSheetBffDto>
+{
+    public async Task<BalanceSheetBffDto> Handle(GetBalanceSheetBffQuery request, CancellationToken ct)
+    {
+        var url = request.AsOf.HasValue
+            ? $"api/reports/balance-sheet?asOf={request.AsOf.Value:O}"
+            : "api/reports/balance-sheet";
+        var result = await apiClient.GetAsync<BalanceSheetBffDto>(url, request.Token, ct);
+        return result!;
+    }
+}

@@ -84,6 +84,17 @@ public record RevenueTimeSeriesDto(
     IReadOnlyList<MonthlyRevenueDto> Revenue,
     IReadOnlyList<MonthlyOrdersDto> Orders);
 
+// ── Balance Sheet ──────────────────────────────────────────────────────────────
+
+public record BalanceSheetSectionDto(string Section, List<PnLLineDto> Lines, decimal Total);
+
+public record BalanceSheetReportDto(
+    DateTime AsOf,
+    BalanceSheetSectionDto Assets,
+    BalanceSheetSectionDto Liabilities,
+    BalanceSheetSectionDto Equity,
+    bool IsBalanced);
+
 // ── KPI Dashboard ──────────────────────────────────────────────────────────────
 
 public record KpiDashboardDto(

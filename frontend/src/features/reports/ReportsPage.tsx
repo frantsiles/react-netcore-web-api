@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp, TrendingDown, DollarSign, ShoppingCart,
-  Package, Clock, BarChart3, FileSpreadsheet,
+  Package, Clock, BarChart3, FileSpreadsheet, Scale,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
-import { reportsService } from './reportsService'
+import { reportsService, type BalanceSheetSectionDto } from './reportsService'
 
 const fmt = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
 const fmtPct = (n: number) => `${n.toFixed(1)}%`
@@ -54,6 +54,7 @@ export function ReportsPage() {
   const [tbPeriod, setTbPeriod] = useState(fiscalPeriod)
   const [runTb, setRunTb] = useState(false)
   const [runPnl, setRunPnl] = useState(false)
+  const [runBs, setRunBs] = useState(false)
 
   const { data: kpi, isLoading: kpiLoading } = useQuery({
     queryKey: ['kpi-dashboard'],
@@ -73,6 +74,12 @@ export function ReportsPage() {
     enabled: runPnl,
   })
 
+  const { data: bs, isLoading: bsLoading } = useQuery({
+    queryKey: ['balance-sheet'],
+    queryFn: () => reportsService.balanceSheet(),
+    enabled: runBs,
+  })
+
   return (
     <div className="space-y-6">
       <div>
@@ -83,8 +90,9 @@ export function ReportsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="kpi"><BarChart3 className="mr-2 h-4 w-4" />KPI Dashboard</TabsTrigger>
-          <TabsTrigger value="tb"><FileSpreadsheet className="mr-2 h-4 w-4" />Balanza</TabsTrigger>
+          <TabsTrigger value="bs"><Scale className="mr-2 h-4 w-4" />Balance General</TabsTrigger>
           <TabsTrigger value="pnl"><TrendingUp className="mr-2 h-4 w-4" />PyG</TabsTrigger>
+          <TabsTrigger value="tb"><FileSpreadsheet className="mr-2 h-4 w-4" />Balanza</TabsTrigger>
         </TabsList>
 
         {/* ── KPI Dashboard ── */}
@@ -113,6 +121,60 @@ export function ReportsPage() {
             </>
           ) : (
             <p className="text-sm text-muted-foreground">No se pudo cargar el dashboard.</p>
+          )}
+        </TabsContent>
+
+        {/* ── Balance General ── */}
+        <TabsContent value="bs" className="space-y-4">
+          <div className="flex gap-3 items-end">
+            <p className="text-sm text-muted-foreground">Balance a fecha de hoy.</p>
+            <Button onClick={() => setRunBs(true)}>Generar</Button>
+          </div>
+          {runBs && (
+            bsLoading ? <Skeleton className="h-64 w-full" /> : bs ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-medium">Balance General — {new Date(bs.asOf).toLocaleDateString('es-MX')}</h3>
+                  <Badge variant={bs.isBalanced ? 'success' : 'destructive'}>
+                    {bs.isBalanced ? 'Balanceado' : 'Desbalanceado'}
+                  </Badge>
+                </div>
+                {([bs.assets, bs.liabilities, bs.equity] as BalanceSheetSectionDto[]).map((section, i) => (
+                  <div key={i} className="rounded-md border">
+                    <div className="px-4 py-2 bg-muted/50 font-medium text-sm">{section.section}</div>
+                    <Table>
+                      <TableBody>
+                        {section.lines.map((line, j) => (
+                          <TableRow key={j}>
+                            <TableCell className="font-mono text-xs text-muted-foreground w-24">{line.accountNumber}</TableCell>
+                            <TableCell>{line.accountName}</TableCell>
+                            <TableCell className="text-right font-medium">{fmt(line.amount)}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/30 font-semibold">
+                          <TableCell colSpan={2} className="text-right pr-8">Total {section.section}</TableCell>
+                          <TableCell className="text-right">{fmt(section.total)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
+                <div className="rounded-lg border bg-card p-4 grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Total Activos</div>
+                    <div className="text-xl font-bold">{fmt(bs.assets.total)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Total Pasivos</div>
+                    <div className="text-xl font-bold">{fmt(bs.liabilities.total)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Capital</div>
+                    <div className="text-xl font-bold">{fmt(bs.equity.total)}</div>
+                  </div>
+                </div>
+              </div>
+            ) : <p className="text-sm text-muted-foreground">No se pudo cargar el balance.</p>
           )}
         </TabsContent>
 

@@ -228,6 +228,37 @@ public class ReportingStore(
         return new RevenueTimeSeriesDto(revenue, orders);
     }
 
+    public async Task<BalanceSheetReportDto> GetBalanceSheetAsync(DateTime asOf, CancellationToken ct = default)
+    {
+        var accounts = await accountingDb.Accounts.AsNoTracking().ToListAsync(ct);
+
+        var assetLines = accounts
+            .Where(a => a.Type == AccountType.Asset || a.Type == AccountType.ContraAsset)
+            .Select(a => new PnLLineDto(a.AccountNumber, a.Name, Math.Abs(a.Balance)))
+            .OrderBy(l => l.AccountNumber).ToList();
+
+        var liabilityLines = accounts
+            .Where(a => a.Type == AccountType.Liability)
+            .Select(a => new PnLLineDto(a.AccountNumber, a.Name, Math.Abs(a.Balance)))
+            .OrderBy(l => l.AccountNumber).ToList();
+
+        var equityLines = accounts
+            .Where(a => a.Type == AccountType.Equity)
+            .Select(a => new PnLLineDto(a.AccountNumber, a.Name, Math.Abs(a.Balance)))
+            .OrderBy(l => l.AccountNumber).ToList();
+
+        var totalAssets = assetLines.Sum(l => l.Amount);
+        var totalLiabilities = liabilityLines.Sum(l => l.Amount);
+        var totalEquity = equityLines.Sum(l => l.Amount);
+
+        return new BalanceSheetReportDto(
+            asOf,
+            new BalanceSheetSectionDto("Activos", assetLines, totalAssets),
+            new BalanceSheetSectionDto("Pasivos", liabilityLines, totalLiabilities),
+            new BalanceSheetSectionDto("Capital", equityLines, totalEquity),
+            IsBalanced: Math.Abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01m);
+    }
+
     private static AgingReportDto BuildAgingReport(string type, DateTime asOf, List<AgingLineDto> lines)
     {
         var bucketDefs = new[] { (0, 30, "0-30"), (31, 60, "31-60"), (61, 90, "61-90"), (91, int.MaxValue, "90+") };

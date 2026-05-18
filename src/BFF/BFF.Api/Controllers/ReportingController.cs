@@ -28,6 +28,11 @@ public class ReportingController(IMediator mediator) : ControllerBase
         [FromQuery] int months = 6, CancellationToken ct = default)
         => Ok(await mediator.Send(new GetRevenueTimeSeriesBffQuery(GetToken(), months), ct));
 
+    [HttpGet("balance-sheet")]
+    public async Task<IActionResult> BalanceSheet(
+        [FromQuery] DateTime? asOf, CancellationToken ct)
+        => Ok(await mediator.Send(new GetBalanceSheetBffQuery(GetToken(), asOf), ct));
+
     private string GetToken()
         => HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");
 }

@@ -13,10 +13,22 @@ export interface PnLLineDto { accountNumber: string; accountName: string; amount
 export interface PnLSectionDto { section: string; lines: PnLLineDto[]; total: number }
 export interface ProfitAndLossDto { from: string; to: string; sections: PnLSectionDto[]; grossProfit: number; operatingIncome: number; netIncome: number }
 
+export interface BalanceSheetLineDto { accountNumber: string; accountName: string; amount: number }
+export interface BalanceSheetSectionDto { section: string; lines: BalanceSheetLineDto[]; total: number }
+export interface BalanceSheetDto {
+  asOf: string
+  assets: BalanceSheetSectionDto
+  liabilities: BalanceSheetSectionDto
+  equity: BalanceSheetSectionDto
+  isBalanced: boolean
+}
+
 export const reportsService = {
   kpi: () => api.get<KpiDashboardDto>('/bff/reports/kpi-dashboard').then(r => r.data),
   trialBalance: (fiscalPeriod: string) =>
     api.get<TrialBalanceDto>('/bff/reports/trial-balance', { params: { fiscalPeriod } }).then(r => r.data),
   profitAndLoss: (from: string, to: string) =>
     api.get<ProfitAndLossDto>('/bff/reports/profit-and-loss', { params: { from, to } }).then(r => r.data),
+  balanceSheet: (asOf?: string) =>
+    api.get<BalanceSheetDto>('/bff/reports/balance-sheet', asOf ? { params: { asOf } } : undefined).then(r => r.data),
 }

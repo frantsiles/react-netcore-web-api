@@ -40,3 +40,15 @@ public record RevenueTimeSeriesBffDto(
 
 public record GetRevenueTimeSeriesBffQuery(string Token, int Months = 6)
     : MediatR.IRequest<RevenueTimeSeriesBffDto>;
+
+public record BalanceSheetLineBffDto(string AccountNumber, string AccountName, decimal Amount);
+public record BalanceSheetSectionBffDto(string Section, List<BalanceSheetLineBffDto> Lines, decimal Total);
+public record BalanceSheetBffDto(
+    DateTime AsOf,
+    BalanceSheetSectionBffDto Assets,
+    BalanceSheetSectionBffDto Liabilities,
+    BalanceSheetSectionBffDto Equity,
+    bool IsBalanced);
+
+public record GetBalanceSheetBffQuery(string Token, DateTime? AsOf = null)
+    : MediatR.IRequest<BalanceSheetBffDto>;

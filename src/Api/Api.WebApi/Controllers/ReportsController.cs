@@ -5,6 +5,7 @@ using Reporting.Application.Queries.AccountsPayableReceivable;
 using Reporting.Application.Queries.InventoryPosition;
 using Reporting.Application.Queries.KpiDashboard;
 using Reporting.Application.Queries.ProfitAndLoss;
+using Reporting.Application.Queries.BalanceSheet;
 using Reporting.Application.Queries.RevenueTimeSeries;
 using Reporting.Application.Queries.TrialBalance;
 
@@ -46,4 +47,9 @@ public class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> RevenueTimeSeries(
         [FromQuery] int months = 6, CancellationToken ct = default)
         => Ok(await sender.Send(new RevenueTimeSeriesQuery(months), ct));
+
+    [HttpGet("balance-sheet")]
+    public async Task<IActionResult> BalanceSheet(
+        [FromQuery] DateTime? asOf, CancellationToken ct)
+        => Ok(await sender.Send(new BalanceSheetQuery(asOf ?? DateTime.UtcNow), ct));
 }

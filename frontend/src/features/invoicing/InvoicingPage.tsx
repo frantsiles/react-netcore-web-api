@@ -12,7 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, FileText, DollarSign, ChevronUp, ChevronDown, MoreHorizontal, FileDown } from "lucide-react";
+import { Plus, FileText, DollarSign, ChevronUp, ChevronDown, MoreHorizontal, FileDown, Stamp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,7 +96,7 @@ const paymentSchema = z.object({
 type ConvertForm = z.infer<typeof convertSchema>;
 type PaymentForm = z.infer<typeof paymentSchema>;
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+// ── Status badges ─────────────────────────────────────────────────────────────
 
 const statusColor: Record<string, string> = {
   Draft:         "secondary",
@@ -111,6 +111,29 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={(statusColor[status] ?? "secondary") as Parameters<typeof Badge>[0]["variant"]}>{status}</Badge>;
 }
 
+const feStatusColor: Record<string, string> = {
+  Accepted:  "success",
+  Submitted: "outline",
+  Signed:    "outline",
+  Pending:   "secondary",
+  Rejected:  "destructive",
+  Error:     "destructive",
+};
+
+function FeBadge({ status }: { status: string }) {
+  const label: Record<string, string> = {
+    Accepted: "Timbrada", Submitted: "En proceso",
+    Signed: "Firmada", Pending: "Pendiente",
+    Rejected: "Rechazada", Error: "Error",
+  };
+  return (
+    <Badge variant={(feStatusColor[status] ?? "secondary") as Parameters<typeof Badge>[0]["variant"]}
+      className="text-xs">
+      {label[status] ?? status}
+    </Badge>
+  );
+}
+
 // ── Column helper ─────────────────────────────────────────────────────────────
 
 const col = createColumnHelper<Invoice>();
@@ -123,6 +146,7 @@ export function InvoicingPage() {
   const [convertOpen, setConvertOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [feStatuses, setFeStatuses] = useState<Record<string, string>>({});
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ["invoices"],
@@ -198,6 +222,22 @@ export function InvoicingPage() {
     },
   });
 
+  const timbreMut = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post(`/bff/fiscal/cr/invoices/${id}/timbre`, {});
+      return res.data as { status: string; haciendaEstado: string | null };
+    },
+    onSuccess: (data, id) => {
+      setFeStatuses(prev => ({ ...prev, [id]: data.status }));
+      const estado = data.haciendaEstado ?? data.status;
+      toast.success(`Timbre enviado — ${estado}`);
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Error al timbrar";
+      toast.error(msg);
+    },
+  });
+
   const downloadPdf = async (path: string, filename: string) => {
     const resp = await api.get(path, { responseType: 'blob' })
     const url = URL.createObjectURL(resp.data)
@@ -219,6 +259,14 @@ export function InvoicingPage() {
     col.accessor("status", {
       header: "Status",
       cell: info => <StatusBadge status={info.getValue()} />,
+    }),
+    col.display({
+      id: "feStatus",
+      header: "FE",
+      cell: ({ row }) => {
+        const s = feStatuses[row.original.id];
+        return s ? <FeBadge status={s} /> : <span className="text-muted-foreground text-xs">—</span>;
+      },
     }),
     col.accessor("issueDate", { header: "Issue Date" }),
     col.accessor("dueDate", { header: "Due Date" }),
@@ -252,6 +300,12 @@ export function InvoicingPage() {
                   setPaymentOpen(true);
                 }}>
                   Record Payment
+                </DropdownMenuItem>
+              )}
+              {inv.status === "Issued" && !feStatuses[inv.id] && (
+                <DropdownMenuItem onClick={() => timbreMut.mutate(inv.id)}
+                  disabled={timbreMut.isPending}>
+                  <Stamp className="mr-2 h-4 w-4" />Timbrar (FE-CR)
                 </DropdownMenuItem>
               )}
               {inv.status !== "Paid" && inv.status !== "Cancelled" && inv.status !== "Voided" && (

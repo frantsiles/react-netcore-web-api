@@ -57,10 +57,10 @@ const deptSchema = z.object({
 type DeptForm = z.infer<typeof deptSchema>
 
 const runSchema = z.object({
-  periodType:  z.enum(['Monthly', 'Biweekly']),
-  periodStart: z.string().min(1, 'Requerido'),
-  periodEnd:   z.string().min(1, 'Requerido'),
-  currencyCode: z.string().length(3, '3 letras').default('CRC'),
+  periodType:   z.enum(['Monthly', 'Biweekly']),
+  periodStart:  z.string().min(1, 'Requerido'),
+  periodEnd:    z.string().min(1, 'Requerido'),
+  currencyCode: z.string().length(3, '3 letras'),
 })
 type RunForm = z.infer<typeof runSchema>
 

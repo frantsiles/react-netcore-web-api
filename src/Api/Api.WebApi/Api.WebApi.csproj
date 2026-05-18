@@ -64,6 +64,8 @@
     <ProjectReference Include="..\..\FiscalCR\FiscalCR.Infrastructure\FiscalCR.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Payroll\Payroll.Application\Payroll.Application.csproj" />
     <ProjectReference Include="..\..\Payroll\Payroll.Infrastructure\Payroll.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\FiscalMX\FiscalMX.Application\FiscalMX.Application.csproj" />
+    <ProjectReference Include="..\..\FiscalMX\FiscalMX.Infrastructure\FiscalMX.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

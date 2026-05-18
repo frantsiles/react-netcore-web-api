@@ -172,6 +172,28 @@ infra/
   deploy.sh                  # script completo: Bicep + build imágenes + push ACR + kubectl apply
 ```
 
+## Regla: Dockerfile al agregar un módulo .NET nuevo
+
+Cada vez que se agrega un módulo nuevo al API (`<ProjectReference>` en `Api.WebApi.csproj`),
+actualizar **`docker/api/Dockerfile`** en **dos secciones**:
+
+1. **Sección de restore** — los `.csproj` para caching de capas (antes del `RUN dotnet restore`):
+```dockerfile
+COPY src/NuevoModulo/NuevoModulo.Domain/NuevoModulo.Domain.csproj             src/NuevoModulo/NuevoModulo.Domain/
+COPY src/NuevoModulo/NuevoModulo.Application/NuevoModulo.Application.csproj   src/NuevoModulo/NuevoModulo.Application/
+COPY src/NuevoModulo/NuevoModulo.Infrastructure/NuevoModulo.Infrastructure.csproj src/NuevoModulo/NuevoModulo.Infrastructure/
+```
+
+2. **Sección de fuentes** — el directorio completo (antes del `RUN dotnet publish`):
+```dockerfile
+COPY src/NuevoModulo/ src/NuevoModulo/
+```
+
+Si el módulo también se referencia desde el BFF, aplicar el mismo patrón en `docker/bff/Dockerfile`.
+
+> Omitir este paso hace que el build local funcione pero `./start.sh --build` falle con
+> `CS0246: namespace not found` porque Docker no tiene acceso a los archivos del módulo.
+
 ## Skill de infraestructura
 
 Usa `/infra` para obtener ayuda contextual con Docker, Kubernetes y Azure para este proyecto.

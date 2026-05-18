@@ -12,7 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, FileText, DollarSign, ChevronUp, ChevronDown, MoreHorizontal, FileDown, Stamp } from "lucide-react";
+import { Plus, FileText, DollarSign, ChevronUp, ChevronDown, MoreHorizontal, FileDown, Stamp, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +52,16 @@ import api from "@/services/api";
 import { SalesOrderPicker } from "@/components/pickers/SalesOrderPicker";
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+interface CfdiDocumentBff {
+  id: string;
+  invoiceId: string;
+  uuid: string | null;
+  status: string; // Pendiente | Timbrado | Error | Cancelado
+  pacMensaje: string | null;
+  cancelMotivo: string | null;
+  timbradoAt: string | null;
+}
 
 interface InvoiceLine {
   id: string;
@@ -134,6 +151,27 @@ function FeBadge({ status }: { status: string }) {
   );
 }
 
+const cfdiStatusColor: Record<string, string> = {
+  Timbrado:  "success",
+  Pendiente: "secondary",
+  Error:     "destructive",
+  Cancelado: "destructive",
+};
+
+function CfdiBadge({ status, uuid }: { status: string; uuid?: string | null }) {
+  const label: Record<string, string> = {
+    Timbrado: "Timbrado", Pendiente: "Pendiente", Error: "Error CFDI", Cancelado: "Cancelado",
+  };
+  return (
+    <Badge
+      variant={(cfdiStatusColor[status] ?? "secondary") as Parameters<typeof Badge>[0]["variant"]}
+      className="text-xs"
+      title={uuid ?? undefined}>
+      {label[status] ?? status}
+    </Badge>
+  );
+}
+
 // ── Column helper ─────────────────────────────────────────────────────────────
 
 const col = createColumnHelper<Invoice>();
@@ -147,6 +185,10 @@ export function InvoicingPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [feStatuses, setFeStatuses] = useState<Record<string, string>>({});
+  const [cfdiDocs, setCfdiDocs] = useState<Record<string, CfdiDocumentBff>>({});
+  const [cancelCfdiId, setCancelCfdiId] = useState<string | null>(null);
+  const [cancelMotivo, setCancelMotivo] = useState("02");
+  const [cancelUuidRel, setCancelUuidRel] = useState("");
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ["invoices"],
@@ -238,6 +280,40 @@ export function InvoicingPage() {
     },
   });
 
+  const timbrarCfdiMut = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post(`/bff/fiscal/mx/invoices/${id}/timbrar`, {});
+      return res.data as CfdiDocumentBff;
+    },
+    onSuccess: (data, id) => {
+      setCfdiDocs(prev => ({ ...prev, [id]: data }));
+      toast.success(`CFDI ${data.status === "Timbrado" ? "timbrado" : "error"} — ${data.uuid ?? data.pacMensaje ?? ""}`);
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Error al timbrar CFDI";
+      toast.error(msg);
+    },
+  });
+
+  const cancelarCfdiMut = useMutation({
+    mutationFn: async ({ id, motivo, uuidRelacionado }: { id: string; motivo: string; uuidRelacionado?: string }) => {
+      const res = await api.post(`/bff/fiscal/mx/invoices/${id}/cancelar`, {
+        motivo,
+        uuidRelacionado: uuidRelacionado || null,
+      });
+      return res.data as CfdiDocumentBff;
+    },
+    onSuccess: (data, { id }) => {
+      setCfdiDocs(prev => ({ ...prev, [id]: data }));
+      setCancelCfdiId(null);
+      toast.success("CFDI cancelado");
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Error al cancelar";
+      toast.error(msg);
+    },
+  });
+
   const downloadPdf = async (path: string, filename: string) => {
     const resp = await api.get(path, { responseType: 'blob' })
     const url = URL.createObjectURL(resp.data)
@@ -262,10 +338,20 @@ export function InvoicingPage() {
     }),
     col.display({
       id: "feStatus",
-      header: "FE",
+      header: "FE-CR",
       cell: ({ row }) => {
         const s = feStatuses[row.original.id];
         return s ? <FeBadge status={s} /> : <span className="text-muted-foreground text-xs">—</span>;
+      },
+    }),
+    col.display({
+      id: "cfdiStatus",
+      header: "CFDI-MX",
+      cell: ({ row }) => {
+        const doc = cfdiDocs[row.original.id];
+        return doc
+          ? <CfdiBadge status={doc.status} uuid={doc.uuid} />
+          : <span className="text-muted-foreground text-xs">—</span>;
       },
     }),
     col.accessor("issueDate", { header: "Issue Date" }),
@@ -306,6 +392,21 @@ export function InvoicingPage() {
                 <DropdownMenuItem onClick={() => timbreMut.mutate(inv.id)}
                   disabled={timbreMut.isPending}>
                   <Stamp className="mr-2 h-4 w-4" />Timbrar (FE-CR)
+                </DropdownMenuItem>
+              )}
+              {inv.status === "Issued" && !cfdiDocs[inv.id] && (
+                <DropdownMenuItem onClick={() => timbrarCfdiMut.mutate(inv.id)}
+                  disabled={timbrarCfdiMut.isPending}>
+                  <Stamp className="mr-2 h-4 w-4" />Timbrar CFDI (MX)
+                </DropdownMenuItem>
+              )}
+              {cfdiDocs[inv.id]?.status === "Timbrado" && (
+                <DropdownMenuItem onClick={() => {
+                  setCancelCfdiId(inv.id);
+                  setCancelMotivo("02");
+                  setCancelUuidRel("");
+                }}>
+                  <XCircle className="mr-2 h-4 w-4" />Cancelar CFDI (MX)
                 </DropdownMenuItem>
               )}
               {inv.status !== "Paid" && inv.status !== "Cancelled" && inv.status !== "Voided" && (
@@ -441,6 +542,58 @@ export function InvoicingPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancelar CFDI MX */}
+      <Dialog open={!!cancelCfdiId} onOpenChange={open => !open && setCancelCfdiId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5" /> Cancelar CFDI
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Motivo de cancelación</Label>
+              <Select value={cancelMotivo} onValueChange={setCancelMotivo}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="01">01 – Comprobante emitido con errores con relación</SelectItem>
+                  <SelectItem value="02">02 – Comprobante emitido con errores sin relación</SelectItem>
+                  <SelectItem value="03">03 – No se llevó a cabo la operación</SelectItem>
+                  <SelectItem value="04">04 – Operación nominativa relacionada en factura global</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {cancelMotivo === "01" && (
+              <div className="space-y-2">
+                <Label>UUID relacionado (requerido para motivo 01)</Label>
+                <Input
+                  placeholder="UUID del CFDI que sustituye"
+                  value={cancelUuidRel}
+                  onChange={e => setCancelUuidRel(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setCancelCfdiId(null)}>Cerrar</Button>
+            <Button
+              variant="destructive"
+              disabled={cancelarCfdiMut.isPending || (cancelMotivo === "01" && !cancelUuidRel)}
+              onClick={() => {
+                if (cancelCfdiId) cancelarCfdiMut.mutate({
+                  id: cancelCfdiId,
+                  motivo: cancelMotivo,
+                  uuidRelacionado: cancelUuidRel || undefined,
+                });
+              }}>
+              {cancelarCfdiMut.isPending ? "Cancelando…" : "Cancelar CFDI"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

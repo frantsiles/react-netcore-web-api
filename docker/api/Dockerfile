@@ -59,6 +59,18 @@ COPY src/Invoicing/Invoicing.Domain/Invoicing.Domain.csproj                   sr
 COPY src/Invoicing/Invoicing.Application/Invoicing.Application.csproj         src/Invoicing/Invoicing.Application/
 COPY src/Invoicing/Invoicing.Infrastructure/Invoicing.Infrastructure.csproj   src/Invoicing/Invoicing.Infrastructure/
 
+COPY src/FiscalCR/FiscalCR.Domain/FiscalCR.Domain.csproj                     src/FiscalCR/FiscalCR.Domain/
+COPY src/FiscalCR/FiscalCR.Application/FiscalCR.Application.csproj           src/FiscalCR/FiscalCR.Application/
+COPY src/FiscalCR/FiscalCR.Infrastructure/FiscalCR.Infrastructure.csproj     src/FiscalCR/FiscalCR.Infrastructure/
+
+COPY src/Payroll/Payroll.Domain/Payroll.Domain.csproj                         src/Payroll/Payroll.Domain/
+COPY src/Payroll/Payroll.Application/Payroll.Application.csproj               src/Payroll/Payroll.Application/
+COPY src/Payroll/Payroll.Infrastructure/Payroll.Infrastructure.csproj         src/Payroll/Payroll.Infrastructure/
+
+COPY src/FiscalMX/FiscalMX.Domain/FiscalMX.Domain.csproj                     src/FiscalMX/FiscalMX.Domain/
+COPY src/FiscalMX/FiscalMX.Application/FiscalMX.Application.csproj           src/FiscalMX/FiscalMX.Application/
+COPY src/FiscalMX/FiscalMX.Infrastructure/FiscalMX.Infrastructure.csproj     src/FiscalMX/FiscalMX.Infrastructure/
+
 RUN dotnet restore src/Api/Api.WebApi/Api.WebApi.csproj
 
 # ── source code ───────────────────────────────────────────────────────────────
@@ -77,6 +89,9 @@ COPY src/Approvals/  src/Approvals/
 COPY src/Reporting/  src/Reporting/
 COPY src/HR/         src/HR/
 COPY src/Invoicing/  src/Invoicing/
+COPY src/FiscalCR/   src/FiscalCR/
+COPY src/Payroll/    src/Payroll/
+COPY src/FiscalMX/   src/FiscalMX/
 
 RUN dotnet publish src/Api/Api.WebApi/Api.WebApi.csproj \
     -c Release -o /app/publish

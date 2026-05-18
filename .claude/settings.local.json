@@ -96,7 +96,10 @@
       "Skill(buyer)",
       "Skill(buyer:*)",
       "Bash(python3 -m json.tool)",
-      "Bash(mkdir -p /workspaces/react-netcore-web-api/.claude/skills/arch)"
+      "Bash(mkdir -p /workspaces/react-netcore-web-api/.claude/skills/arch)",
+      "Bash(sudo lsof -i :5432)",
+      "Bash(docker stop *)",
+      "Bash(docker rm *)"
     ],
     "additionalDirectories": [
       "/home/frantsiles/react-netcore-web-api/src/Shared",

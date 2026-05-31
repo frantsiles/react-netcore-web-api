@@ -8,9 +8,9 @@ public class PartyRepository(PartiesDbContext db) : IPartyRepository
 {
     public async Task<Party?> GetByIdAsync(Guid partyId, CancellationToken ct = default)
         => await db.Parties
-            .Include("_roles")
-            .Include("_addresses")
-            .Include("_contactPoints")
+            .Include(p => p.Roles)
+            .Include(p => p.Addresses)
+            .Include(p => p.ContactPoints)
             .FirstOrDefaultAsync(p => p.Id == partyId, ct);
 
     public async Task<bool> ExistsByTaxIdAsync(string taxId, string countryCode, CancellationToken ct = default)
@@ -42,7 +42,10 @@ public class PartyRepository(PartiesDbContext db) : IPartyRepository
 
     public async Task UpdateAsync(Party party, CancellationToken ct = default)
     {
-        db.Parties.Update(party);
+        // Entity is already tracked from GetByIdAsync — calling SaveChanges persists
+        // only the changed properties without marking owned collections as modified.
+        if (db.Entry(party).State == EntityState.Detached)
+            db.Parties.Update(party);
         await db.SaveChangesAsync(ct);
     }
 }

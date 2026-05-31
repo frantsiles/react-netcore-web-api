@@ -53,8 +53,8 @@ Repositorio de demostración que muestra cómo construir y operar una aplicació
 1. [Arquitectura](#1-arquitectura)
 2. [Stack tecnológico](#2-stack-tecnológico)
 3. [Inicio rápido — elige tu camino](#3-inicio-rápido--elige-tu-camino)
-4. [Modo A · Sin Docker (local)](#4-modo-a--sin-docker-local)
-5. [Modo B · Docker Compose](#5-modo-b--docker-compose)
+4. [Modo Dev · Hot-reload local](#4-modo-dev--hot-reload-local-recomendado-para-desarrollo)
+5. [Modo B · Docker Compose (stack completo)](#5-modo-b--docker-compose-stack-completo)
 6. [Modo C · GitHub Codespaces](#6-modo-c--github-codespaces)
 7. [Componentes — qué resuelve cada capa y cuándo usarla](#7-componentes--qué-resuelve-cada-capa-y-cuándo-usarla)
 8. [Observabilidad — Grafana Stack](#8-observabilidad--grafana-stack)
@@ -193,18 +193,24 @@ OTel Collector
 
 ```
 ¿Tienes Docker?
-├── SÍ ──▶ Modo B (Docker Compose) — sección 5      ← recomendado
-│          ./start.sh levanta todo: 5 servicios + Postgres + RabbitMQ.
+├── SÍ ──▶ ¿Quieres iterar rápido con hot-reload?
+│          ├── SÍ ──▶ Modo Dev — sección 4          ← recomendado para desarrollo
+│          │          ./start.sh --dev  (solo infra)
+│          │          + dotnet watch + npm run dev
+│          │
+│          └── NO ──▶ Modo B (Docker Compose) — sección 5
+│                     ./start.sh levanta todo en contenedores.
+│                     Igual a producción/Kubernetes.
 │
 └── NO ──▶ ¿Usas GitHub Codespaces?
            ├── SÍ ──▶ Modo C (Codespaces) — sección 6
            │          Funciona en el navegador, sin instalar nada.
            │
            └── NO ──▶ Modo A (local sin Docker) — sección 4
-                      `dotnet run` por servicio. Requiere .NET 10 SDK + Node 20.
+                      Requiere .NET 10 SDK + Node 20.
 ```
 
-**Camino corto si ya tienes Docker:**
+**Camino corto — modo Docker completo:**
 
 ```bash
 git clone https://github.com/<tu-usuario>/react-netcore-web-api.git
@@ -214,16 +220,29 @@ cd react-netcore-web-api
 ./stop.sh                 # baja todo
 ```
 
+**Camino corto — modo desarrollo con hot-reload:**
+
+```bash
+./start.sh --dev          # levanta solo Postgres + RabbitMQ
+# En terminales separadas:
+dotnet watch run --project src/Api/Api.WebApi
+dotnet watch run --project src/BFF/BFF.Api
+cd frontend && npm run dev
+# → http://localhost:5173
+./stop.sh --dev           # baja la infra al terminar
+```
+
 ---
 
-## 4. Modo A · Sin Docker (local)
+## 4. Modo Dev · Hot-reload local (recomendado para desarrollo)
 
-Útil para iterar rápido en un único servicio con hot-reload y atacar el código con el debugger del IDE. **No recomendado como flujo principal**: el stack containerizado es más representativo de cómo corre la app en producción.
+Ideal para iterar rápido: los cambios en `.cs` se reflejan en ~2 s y el frontend tiene HMR (<100 ms). Solo Postgres y RabbitMQ corren en Docker; los servicios .NET y Vite corren en el host con recarga automática.
 
 ### Requisitos
 
 | Herramienta | Versión mínima | Verificar          |
 | ----------- | -------------- | ------------------ |
+| Docker      | 20+            | `docker --version` |
 | .NET SDK    | 10.x           | `dotnet --version` |
 | Node.js     | 20.x           | `node --version`   |
 | npm         | 10.x           | `npm --version`    |
@@ -243,52 +262,72 @@ cd frontend && npm install && cd ..
 npx playwright install --with-deps chromium   # solo si vas a correr tests E2E
 ```
 
-### Levantar la infraestructura (Postgres + RabbitMQ + observabilidad)
-
-Para `dotnet run` necesitas Postgres en `localhost:5433` (lo que asume `appsettings.Development.json` y `docker-compose.infra.yml`):
+### Levantar la infraestructura
 
 ```bash
-docker compose -f docker-compose.infra.yml up -d
+./start.sh --dev
 ```
 
-Levanta solo la infraestructura sin las imágenes de la app — los servicios .NET los corres con `dotnet run` y se conectan a Postgres y RabbitMQ del compose de infra.
+Levanta **solo Postgres (`:5432`) y RabbitMQ** — sin las imágenes de la app ni el stack de observabilidad. Más rápido que el `docker compose up -d` completo.
 
-> Para el stack completo con `./start.sh`, Postgres se expone en `localhost:5432` y la connection string es inyectada desde `docker-compose.yml`.
-
-### Arrancar servicios individualmente
+Para bajarlo al terminar:
 
 ```bash
-# Terminal 1 — Backend API (puerto 5002)
-dotnet run --project src/Api/Api.WebApi
+./stop.sh --dev
+```
 
-# Terminal 2 — BFF (puerto 5001)
-dotnet run --project src/BFF/BFF.Api
+### Arrancar servicios con hot-reload
 
-# Terminal 3 — Frontend (puerto 5173)
+Abre **tres terminales** y corre uno por terminal:
+
+```bash
+# Terminal 1 — Backend API (hot-reload, puerto 5002)
+dotnet watch run --project src/Api/Api.WebApi
+
+# Terminal 2 — BFF (hot-reload, puerto 5001)
+dotnet watch run --project src/BFF/BFF.Api
+
+# Terminal 3 — Frontend (HMR, puerto 5173)
 cd frontend && npm run dev
-
-# Terminal 4 (opcional) — YARP Gateway (puerto 5000)
-dotnet run --project src/Gateway/Gateway.Api
-
-# Terminal 5 (opcional) — Worker Service
-dotnet run --project src/Worker/Worker.Service
 ```
+
+> **Tip:** `dotnet watch` detecta cambios en `.cs` y recarga el proceso en ~2 s. Cuando añades archivos nuevos al proyecto (no solo editas), presiona **Ctrl+R** en el terminal del watch para forzar el reinicio.
 
 | Servicio            | URL                              | Descripción                   |
 | ------------------- | -------------------------------- | ----------------------------- |
 | Frontend React      | http://localhost:5173            | App principal                 |
 | Backend API Swagger | http://localhost:5002/swagger    | Explora los endpoints del API |
 | BFF Swagger         | http://localhost:5001/swagger    | Explora los endpoints del BFF |
-| API health          | http://localhost:5002/api/health | Liveness check                |
-| BFF health          | http://localhost:5001/bff/health | Liveness check                |
+| Postgres            | localhost:5432                   | `demo` / `demo123`            |
+| RabbitMQ UI         | http://localhost:15672           | `admin` / `admin123`          |
 
 > **Nota:** el Gateway y el Worker **no son obligatorios** para iterar en local. El Gateway es el punto de entrada en Docker/K8s; el Worker necesita RabbitMQ corriendo.
 
+### Servicios opcionales
+
+```bash
+# Terminal 4 (opcional) — YARP Gateway (puerto 5000)
+dotnet watch run --project src/Gateway/Gateway.Api
+
+# Terminal 5 (opcional) — Worker Service
+dotnet watch run --project src/Worker/Worker.Service
+```
+
+### Forzar reset de base de datos
+
+Si necesitas partir de datos frescos (por ejemplo, después de cambiar el seeder):
+
+```bash
+DB_RESET=true dotnet watch run --project src/Api/Api.WebApi
+```
+
+Esto borra y recrea todas las tablas en Postgres y aplica el seed completo.
+
 ---
 
-## 5. Modo B · Docker Compose
+## 5. Modo B · Docker Compose (stack completo)
 
-Flujo principal recomendado. Toda la arquitectura corre en contenedores, igual que en Kubernetes — solo cambia la orquestación.
+Toda la arquitectura corre en contenedores, igual que en Kubernetes — solo cambia la orquestación. Ideal para validar el build final, demos, o cuando no quieres tener terminales de `dotnet watch` abiertas.
 
 ### Requisitos
 
@@ -346,15 +385,22 @@ RABBITMQ_PASS=admin123
 GRAFANA_ADMIN_PASS=admin
 ```
 
-### Solo infraestructura — para iterar con `dotnet run`
+### Solo infraestructura — para iterar con `dotnet watch`
 
-Levanta Postgres + RabbitMQ + observabilidad sin las imágenes de la app:
+La forma recomendada es usar el script (ver [sección 4](#4-modo-dev--hot-reload-local-recomendado-para-desarrollo)):
+
+```bash
+./start.sh --dev    # levanta Postgres :5432 + RabbitMQ
+./stop.sh --dev     # para la infra
+```
+
+O directamente con Docker Compose si quieres el stack completo de observabilidad incluido:
 
 ```bash
 docker compose -f docker-compose.infra.yml up -d
 ```
 
-Postgres queda expuesto en **5433** (no 5432) para no chocar con otra instancia en el host, lo que coincide con la connection string de `appsettings.Development.json`.
+Postgres queda expuesto en **:5432**, igual que en el stack completo y en `appsettings.Development.json`.
 
 ### Comandos útiles de Docker Compose
 
@@ -981,7 +1027,7 @@ react-netcore-web-api/
 ├── .github/
 │   └── commit-message-instructions.md  # Conventional Commits en español
 ├── docker-compose.yml              # Stack completo (app + Postgres + RabbitMQ + observabilidad)
-├── docker-compose.infra.yml        # Solo infraestructura (Postgres :5433 + RabbitMQ + observabilidad)
+├── docker-compose.infra.yml        # Solo infraestructura (Postgres :5432 + RabbitMQ + observabilidad)
 ├── .env.example                    # Plantilla de variables de entorno
 ├── start.sh                        # docker compose up -d --wait (con --obs y --build)
 ├── stop.sh                         # docker compose down (con --clean para borrar volúmenes)

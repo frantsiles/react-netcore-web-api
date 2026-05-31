@@ -50,11 +50,25 @@ export const payrollService = {
       api.post<PayrollRunDto>('/bff/payroll/runs', body).then(r => r.data),
     confirm: (id: string) =>
       api.post<PayrollRunDto>(`/bff/payroll/runs/${id}/confirm`).then(r => r.data),
+    markPaid: (id: string) =>
+      api.post<PayrollRunDto>(`/bff/payroll/runs/${id}/mark-paid`).then(r => r.data),
     downloadPaystub: async (runId: string, entryId: string, fileName: string) => {
       const response = await api.get(`/bff/payroll/runs/${runId}/entries/${entryId}/paystub`, {
         responseType: 'blob',
       })
       const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    downloadCcssReport: async (runId: string, fileName: string) => {
+      const response = await api.get(`/bff/payroll/runs/${runId}/ccss-report`, {
+        responseType: 'blob',
+      })
+      const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      const url = URL.createObjectURL(new Blob([response.data], { type: mime }))
       const a = document.createElement('a')
       a.href = url
       a.download = fileName

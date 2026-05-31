@@ -60,3 +60,9 @@ public record ConfirmPayrollRunBffCommand(string Token, Guid RunId)
 
 public record DownloadPaystubBffQuery(string Token, Guid RunId, Guid EntryId)
     : MediatR.IRequest<(byte[] Content, string ContentType, string FileName)>;
+
+public record MarkPayrollRunPaidBffCommand(string Token, Guid RunId)
+    : MediatR.IRequest<PayrollRunBffDto>;
+
+public record DownloadCcssReportBffQuery(string Token, Guid RunId)
+    : MediatR.IRequest<(byte[] Content, string ContentType, string FileName)>;

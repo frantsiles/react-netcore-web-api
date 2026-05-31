@@ -31,11 +31,23 @@ public class PayrollController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Confirm(Guid id, CancellationToken ct)
         => Ok(await mediator.Send(new ConfirmPayrollRunBffCommand(GetToken(), id), ct));
 
+    [HttpPost("runs/{id:guid}/mark-paid")]
+    public async Task<IActionResult> MarkPaid(Guid id, CancellationToken ct)
+        => Ok(await mediator.Send(new MarkPayrollRunPaidBffCommand(GetToken(), id), ct));
+
     [HttpGet("runs/{runId:guid}/entries/{entryId:guid}/paystub")]
     public async Task<IActionResult> Paystub(Guid runId, Guid entryId, CancellationToken ct)
     {
         var (content, contentType, fileName) = await mediator.Send(
             new DownloadPaystubBffQuery(GetToken(), runId, entryId), ct);
+        return File(content, contentType, fileName);
+    }
+
+    [HttpGet("runs/{id:guid}/ccss-report")]
+    public async Task<IActionResult> CcssReport(Guid id, CancellationToken ct)
+    {
+        var (content, contentType, fileName) = await mediator.Send(
+            new DownloadCcssReportBffQuery(GetToken(), id), ct);
         return File(content, contentType, fileName);
     }
 

@@ -19,3 +19,18 @@ public class ConfirmPayrollRunHandler(IPayrollRunRepository repo)
         return CreatePayrollRunHandler.ToDto(run);
     }
 }
+
+public record MarkPayrollRunPaidCommand(Guid RunId) : IRequest<PayrollRunDto>;
+
+public class MarkPayrollRunPaidHandler(IPayrollRunRepository repo)
+    : IRequestHandler<MarkPayrollRunPaidCommand, PayrollRunDto>
+{
+    public async Task<PayrollRunDto> Handle(MarkPayrollRunPaidCommand req, CancellationToken ct)
+    {
+        var run = await repo.GetByIdAsync(req.RunId, ct)
+            ?? throw new InvalidOperationException($"PayrollRun {req.RunId} not found.");
+        run.MarkPaid();
+        await repo.SaveChangesAsync(ct);
+        return CreatePayrollRunHandler.ToDto(run);
+    }
+}

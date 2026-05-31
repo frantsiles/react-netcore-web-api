@@ -56,3 +56,25 @@ public class DownloadPaystubBffHandler(IApiClient apiClient)
             $"api/payroll/runs/{req.RunId}/entries/{req.EntryId}/paystub",
             req.Token, ct);
 }
+
+public class MarkPayrollRunPaidBffHandler(IApiClient apiClient)
+    : IRequestHandler<MarkPayrollRunPaidBffCommand, PayrollRunBffDto>
+{
+    public async Task<PayrollRunBffDto> Handle(MarkPayrollRunPaidBffCommand req, CancellationToken ct)
+    {
+        var result = await apiClient.PostAsync<object, PayrollRunBffDto>(
+            $"api/payroll/runs/{req.RunId}/mark-paid",
+            new { }, req.Token, ct);
+        return result!;
+    }
+}
+
+public class DownloadCcssReportBffHandler(IApiClient apiClient)
+    : IRequestHandler<DownloadCcssReportBffQuery, (byte[] Content, string ContentType, string FileName)>
+{
+    public Task<(byte[] Content, string ContentType, string FileName)> Handle(
+        DownloadCcssReportBffQuery req, CancellationToken ct)
+        => apiClient.GetFileAsync(
+            $"api/payroll/runs/{req.RunId}/ccss-report",
+            req.Token, ct);
+}

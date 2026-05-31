@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, Users, Building2, MoreHorizontal, ChevronUp, ChevronDown, ListChecks, CheckCircle2, ChevronRight, Download } from 'lucide-react'
+import { Plus, Users, Building2, MoreHorizontal, ChevronUp, ChevronDown, ListChecks, CheckCircle2, ChevronRight, Download, FileSpreadsheet, Banknote } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -129,6 +129,12 @@ export function HRPage() {
     onError: () => toast.error('Error al confirmar planilla'),
   })
 
+  const markPaidMut = useMutation({
+    mutationFn: (id: string) => payrollService.runs.markPaid(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payrollRuns'] }); setSelectedRun(null); toast.success('Planilla marcada como pagada') },
+    onError: () => toast.error('Error al marcar como pagada'),
+  })
+
   const hireForm      = useForm<HireForm>({      resolver: zodResolver(hireSchema),     defaultValues: { employmentType: 'FullTime' } })
   const terminateForm = useForm<TerminateForm>({ resolver: zodResolver(terminateSchema) })
   const deptForm      = useForm<DeptForm>({      resolver: zodResolver(deptSchema) })
@@ -198,6 +204,16 @@ export function HRPage() {
               <CheckCircle2 className="h-4 w-4" />
             </Button>
           )}
+          {row.original.status === 'Confirmed' && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => markPaidMut.mutate(row.original.id)} title="Marcar pagada">
+              <Banknote className="h-4 w-4" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"
+            onClick={() => payrollService.runs.downloadCcssReport(row.original.id, `planilla-ccss-${row.original.runNumber}.xlsx`)}
+            title="Planilla CCSS">
+            <FileSpreadsheet className="h-4 w-4" />
+          </Button>
         </div>
       ),
     }),
@@ -258,7 +274,38 @@ export function HRPage() {
         </TabsContent>
 
         <TabsContent value="payroll" className="space-y-4">
-          <SimpleTable table={pTable} columns={runCols} isLoading={runLoading} empty="No hay planillas. Haga clic en 'Correr planilla' para generar la primera." />
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {runLoading
+              ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-lg border p-4"><Skeleton className="h-5 w-40 mb-2" /><Skeleton className="h-4 w-full" /></div>)
+              : (payrollRuns ?? []).length === 0
+                ? <p className="text-center text-muted-foreground py-10">No hay planillas. Haga clic en 'Correr planilla'.</p>
+                : (payrollRuns ?? []).map(run => (
+                    <div key={run.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-medium text-sm">{run.runNumber}</span>
+                        <Badge variant={RUN_VARIANT[run.status]}>{RUN_STATUS[run.status] ?? run.status}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{run.periodStart} → {run.periodEnd} · {run.periodType === 'Monthly' ? 'Mensual' : 'Quincenal'}</div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div><span className="text-muted-foreground">Empleados: </span>{run.employeeCount}</div>
+                        <div><span className="text-muted-foreground">Neto: </span><strong>{fmt(run.totalNet)}</strong></div>
+                        <div className="col-span-2"><span className="text-muted-foreground">Costo patronal: </span>{fmt(run.totalEmployerCost)}</div>
+                      </div>
+                      <div className="flex gap-2 pt-1 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedRun(run)}><ChevronRight className="mr-1 h-3.5 w-3.5" />Detalle</Button>
+                        {run.status === 'Draft' && <Button size="sm" variant="outline" className="text-green-600" onClick={() => confirmRunMut.mutate(run.id)}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />Confirmar</Button>}
+                        {run.status === 'Confirmed' && <Button size="sm" variant="outline" className="text-blue-600" onClick={() => markPaidMut.mutate(run.id)}><Banknote className="mr-1 h-3.5 w-3.5" />Pagada</Button>}
+                        <Button size="sm" variant="ghost" onClick={() => payrollService.runs.downloadCcssReport(run.id, `planilla-ccss-${run.runNumber}.xlsx`)}><FileSpreadsheet className="mr-1 h-3.5 w-3.5" />CCSS</Button>
+                      </div>
+                    </div>
+                  ))
+            }
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <SimpleTable table={pTable} columns={runCols} isLoading={runLoading} empty="No hay planillas. Haga clic en 'Correr planilla' para generar la primera." />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -318,12 +365,21 @@ export function HRPage() {
                 </TableBody>
               </Table>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-wrap gap-2">
               {selectedRun.status === 'Draft' && (
                 <Button onClick={() => { confirmRunMut.mutate(selectedRun.id); setSelectedRun(null) }} disabled={confirmRunMut.isPending}>
                   <CheckCircle2 className="mr-2 h-4 w-4" />Confirmar planilla
                 </Button>
               )}
+              {selectedRun.status === 'Confirmed' && (
+                <Button variant="default" onClick={() => markPaidMut.mutate(selectedRun.id)} disabled={markPaidMut.isPending}>
+                  <Banknote className="mr-2 h-4 w-4" />Marcar como pagada
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => payrollService.runs.downloadCcssReport(
+                selectedRun.id, `planilla-ccss-${selectedRun.runNumber}.xlsx`)}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />Planilla CCSS
+              </Button>
               <Button variant="outline" onClick={() => setSelectedRun(null)}>Cerrar</Button>
             </DialogFooter>
           </DialogContent>

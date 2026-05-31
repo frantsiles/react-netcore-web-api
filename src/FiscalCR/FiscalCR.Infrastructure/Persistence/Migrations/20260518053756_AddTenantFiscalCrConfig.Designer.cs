@@ -3,6 +3,7 @@ using System;
 using FiscalCR.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FiscalCR.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(FiscalCrDbContext))]
-    partial class FiscalCrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518053756_AddTenantFiscalCrConfig")]
+    partial class AddTenantFiscalCrConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

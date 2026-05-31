@@ -20,4 +20,6 @@ public record TenantFeCrConfig(
     string? HaciendaUsername,
     string? HaciendaPassword,
     string? CertificatePath,
-    string? CertificatePassword);
+    string? CertificatePassword,
+    // Certificate as raw bytes when loaded from DB (takes precedence over CertificatePath)
+    byte[]? CertificateBytes = null);

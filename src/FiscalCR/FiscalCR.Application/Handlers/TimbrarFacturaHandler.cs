@@ -6,14 +6,13 @@ using Invoicing.Domain.Repositories;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Parties.Domain.Parties;
-using Parties.Domain.ValueObjects;
 
 namespace FiscalCR.Application.Handlers;
 
 public class TimbrarFacturaHandler(
     IInvoiceRepository invoiceRepo,
     IElectronicDocumentRepository docRepo,
+    ITenantFiscalCrConfigRepository tenantConfigRepo,
     IFeCrXmlGenerator xmlGenerator,
     IXmlSigner xmlSigner,
     IHaciendaClient haciendaClient,
@@ -34,7 +33,7 @@ public class TimbrarFacturaHandler(
         if (existing is not null && existing.Status is ElectronicDocumentStatus.Accepted or ElectronicDocumentStatus.Submitted)
             return ToDto(existing);
 
-        var tenantCfg = LoadTenantConfig(invoice.TenantId);
+        var tenantCfg = await LoadTenantConfigAsync(invoice.TenantId, ct);
         var (clave, consecutivo) = ClaveGenerator.Generate(
             tenantCfg.TipoIdentificacion, tenantCfg.NumeroIdentificacion,
             invoice.IssueDate.ToDateTime(TimeOnly.MinValue));
@@ -76,10 +75,31 @@ public class TimbrarFacturaHandler(
         return ToDto(doc);
     }
 
-    private TenantFeCrConfig LoadTenantConfig(Guid tenantId)
+    private async Task<TenantFeCrConfig> LoadTenantConfigAsync(Guid tenantId, CancellationToken ct)
     {
-        // In production, load from tenant settings stored in DB.
-        // For demo, fall back to appsettings FiscalCR section.
+        var dbConfig = await tenantConfigRepo.FindByTenantIdAsync(tenantId, ct);
+        if (dbConfig is not null)
+        {
+            return new TenantFeCrConfig(
+                RazonSocial: dbConfig.RazonSocial,
+                NombreComercial: dbConfig.NombreComercial,
+                TipoIdentificacion: dbConfig.TipoIdentificacion,
+                NumeroIdentificacion: dbConfig.NumeroIdentificacion,
+                CodigoActividad: dbConfig.CodigoActividad,
+                Provincia: dbConfig.Provincia,
+                Canton: dbConfig.Canton,
+                Distrito: dbConfig.Distrito,
+                OtrasSenas: dbConfig.OtrasSenas,
+                Telefono: dbConfig.Telefono,
+                Email: dbConfig.Email,
+                HaciendaUsername: dbConfig.HaciendaUsername,
+                HaciendaPassword: dbConfig.HaciendaPassword,
+                CertificatePath: null,
+                CertificatePassword: dbConfig.CertificatePassword,
+                CertificateBytes: dbConfig.CertificateBytes);
+        }
+
+        // Fall back to appsettings for local dev without a seeded tenant config.
         var section = config.GetSection("FiscalCR");
         return new TenantFeCrConfig(
             RazonSocial: section["EmisorNombre"] ?? "Demo ERP S.A.",
@@ -96,7 +116,8 @@ public class TimbrarFacturaHandler(
             HaciendaUsername: section["HaciendaUsername"],
             HaciendaPassword: section["HaciendaPassword"],
             CertificatePath: section["CertificatePath"],
-            CertificatePassword: section["CertificatePassword"]);
+            CertificatePassword: section["CertificatePassword"],
+            CertificateBytes: null);
     }
 
     private static FeCrInvoiceData BuildXmlData(

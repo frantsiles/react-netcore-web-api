@@ -1,4 +1,6 @@
 using Accounting.Domain.Accounts;
+using FiscalCR.Domain.TenantConfig;
+using FiscalCR.Infrastructure.Persistence;
 using Accounting.Domain.JournalEntries;
 using Accounting.Infrastructure.Persistence;
 using Api.Domain.Common;
@@ -1413,6 +1415,34 @@ public static class DemoDataSeeder
 
         await invoicingMm.Invoices.AddRangeAsync(mmFac1, mmFac2, mmFac3, mmFac4);
         await invoicingMm.SaveChangesAsync();
+
+        // FiscalCR tenant config — sandbox mode without real credentials.
+        // Upload a real .p12 + Hacienda credentials via the admin API to enable actual timbrado.
+        var fiscalCrDb = sp.GetRequiredService<FiscalCrDbContext>();
+        if (!await fiscalCrDb.TenantConfigs.AnyAsync(c => c.TenantId == tid))
+        {
+            var fiscalCrConfig = TenantFiscalCrConfig.Create(
+                tenantId: tid,
+                razonSocial: "MercaMás S.A.",
+                nombreComercial: "MercaMás",
+                tipoIdentificacion: "02",
+                numeroIdentificacion: "3101999001",
+                codigoActividad: "461101",   // Comercio al por mayor de alimentos
+                provincia: "1",
+                canton: "01",
+                distrito: "01",
+                otrasSenas: "San José, Barrio Escalante, Costa Rica",
+                email: "facturacion@mercamas.cr",
+                telefono: "+506 2222-1111",
+                haciendaUsername: null,
+                haciendaPassword: null,
+                certificateBytes: null,
+                certificatePassword: null,
+                environment: "sandbox");
+
+            await fiscalCrDb.TenantConfigs.AddAsync(fiscalCrConfig);
+            await fiscalCrDb.SaveChangesAsync();
+        }
     }
 
     // ── Factory helpers ───────────────────────────────────────────────────────

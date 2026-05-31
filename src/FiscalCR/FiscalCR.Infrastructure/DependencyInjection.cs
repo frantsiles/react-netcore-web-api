@@ -23,22 +23,16 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IElectronicDocumentRepository, ElectronicDocumentRepository>();
+        services.AddScoped<ITenantFiscalCrConfigRepository, TenantFiscalCrConfigRepository>();
         services.AddSingleton<IFeCrXmlGenerator, FeCrXmlGenerator>();
 
-        // Use stub implementations in development (no real Hacienda credentials needed)
-        // Replace with real implementations when ATV credentials are configured
-        var mode = configuration["FiscalCR:Mode"] ?? "Development";
-        if (mode == "Production")
-        {
-            // TODO: wire real XmlSigner and HaciendaClient once ATV credentials exist
-            services.AddSingleton<IXmlSigner, StubXmlSigner>();
-            services.AddSingleton<IHaciendaClient, StubHaciendaClient>();
-        }
-        else
-        {
-            services.AddSingleton<IXmlSigner, StubXmlSigner>();
-            services.AddSingleton<IHaciendaClient, StubHaciendaClient>();
-        }
+        // Real implementations: use Scoped (not Singleton) because they depend on ITenantFiscalCrConfigRepository.
+        // XmlSignerService falls back to no-signing when the tenant has no certificate configured.
+        // HaciendaClient falls back to stub-acceptance when no Hacienda credentials are configured.
+        services.AddScoped<IXmlSigner, XmlSignerService>();
+        services.AddScoped<IHaciendaClient, HaciendaClient>();
+
+        services.AddHttpClient("Hacienda");
 
         return services;
     }

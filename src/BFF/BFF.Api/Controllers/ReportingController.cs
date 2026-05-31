@@ -34,6 +34,35 @@ public class ReportingController(IMediator mediator, IApiClient apiClient) : Con
         [FromQuery] DateTime? asOf, CancellationToken ct)
         => Ok(await mediator.Send(new GetBalanceSheetBffQuery(GetToken(), asOf), ct));
 
+    [HttpGet("profit-and-loss/pdf")]
+    public async Task<IActionResult> ProfitAndLossPdf(
+        [FromQuery] DateTime from, [FromQuery] DateTime to, CancellationToken ct)
+    {
+        var url = $"api/reports/profit-and-loss/pdf?from={from:O}&to={to:O}";
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(url, GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
+
+    [HttpGet("balance-sheet/pdf")]
+    public async Task<IActionResult> BalanceSheetPdf(
+        [FromQuery] DateTime? asOf, CancellationToken ct)
+    {
+        var url = asOf.HasValue
+            ? $"api/reports/balance-sheet/pdf?asOf={asOf.Value:O}"
+            : "api/reports/balance-sheet/pdf";
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(url, GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
+
+    [HttpGet("trial-balance/pdf")]
+    public async Task<IActionResult> TrialBalancePdf(
+        [FromQuery] string fiscalPeriod, CancellationToken ct)
+    {
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(
+            $"api/reports/trial-balance/pdf?fiscalPeriod={Uri.EscapeDataString(fiscalPeriod)}", GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
+
     [HttpGet("inventory-position/export")]
     public async Task<IActionResult> ExportInventory(CancellationToken ct)
     {

@@ -1,4 +1,5 @@
 using Api.WebApi.Infrastructure.Excel;
+using Api.WebApi.Infrastructure.Pdf;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +54,36 @@ public class ReportsController(ISender sender) : ControllerBase
     public async Task<IActionResult> BalanceSheet(
         [FromQuery] DateTime? asOf, CancellationToken ct)
         => Ok(await sender.Send(new BalanceSheetQuery(asOf ?? DateTime.UtcNow), ct));
+
+    [HttpGet("profit-and-loss/pdf")]
+    public async Task<IActionResult> ProfitAndLossPdf(
+        [FromQuery] DateTime from, [FromQuery] DateTime to, CancellationToken ct)
+    {
+        var report = await sender.Send(new ProfitAndLossQuery(from, to), ct);
+        var bytes = PdfService.GeneratePnlPdf(report);
+        return File(bytes, "application/pdf",
+            $"P&L-{from:yyyyMM}-{to:yyyyMM}.pdf");
+    }
+
+    [HttpGet("balance-sheet/pdf")]
+    public async Task<IActionResult> BalanceSheetPdf(
+        [FromQuery] DateTime? asOf, CancellationToken ct)
+    {
+        var report = await sender.Send(new BalanceSheetQuery(asOf ?? DateTime.UtcNow), ct);
+        var bytes = PdfService.GenerateBalanceSheetPdf(report);
+        return File(bytes, "application/pdf",
+            $"BalanceGeneral-{(asOf ?? DateTime.UtcNow):yyyyMMdd}.pdf");
+    }
+
+    [HttpGet("trial-balance/pdf")]
+    public async Task<IActionResult> TrialBalancePdf(
+        [FromQuery] string fiscalPeriod, CancellationToken ct)
+    {
+        var report = await sender.Send(new TrialBalanceQuery(fiscalPeriod), ct);
+        var bytes = PdfService.GenerateTrialBalancePdf(report);
+        return File(bytes, "application/pdf",
+            $"BalanceComprobacion-{fiscalPeriod}.pdf");
+    }
 
     [HttpGet("inventory-position/export")]
     public async Task<IActionResult> ExportInventory(CancellationToken ct)

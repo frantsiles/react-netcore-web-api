@@ -79,7 +79,7 @@ public class SalesQuotesController(IMediator mediator, IApiClient apiClient) : C
 [ApiController]
 [Route("bff/sales/orders")]
 [Authorize]
-public class SalesOrdersController(IMediator mediator) : ControllerBase
+public class SalesOrdersController(IMediator mediator, IApiClient apiClient) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Search(
@@ -98,6 +98,14 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Cancel(
         Guid id, [FromBody] CancelOrderBffRequest req, CancellationToken ct)
         => Ok(await mediator.Send(new CancelSalesOrderBffCommand(GetToken(), id, req.Reason), ct));
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var (bytes, contentType, fileName) = await apiClient.GetFileAsync(
+            $"api/sales/orders/{id}/pdf", GetToken(), ct);
+        return File(bytes, contentType, fileName);
+    }
 
     private string GetToken()
         => HttpContext.Request.Headers.Authorization.ToString().Replace("Bearer ", "");

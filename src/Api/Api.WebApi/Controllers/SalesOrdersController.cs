@@ -1,6 +1,8 @@
+using Api.WebApi.Infrastructure.Pdf;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Parties.Application.Queries.GetPartyById;
 using Sales.Application.Orders.Commands.AddOrderLine;
 using Sales.Application.Orders.Commands.CancelSalesOrder;
 using Sales.Application.Orders.Commands.ConfirmSalesOrder;
@@ -70,6 +72,15 @@ public class SalesOrdersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Cancel(Guid id,
         [FromBody] CancelOrderRequest body, CancellationToken ct) =>
         Ok(await mediator.Send(new CancelSalesOrderCommand(id, body.Reason), ct));
+
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
+    {
+        var order = await mediator.Send(new GetSalesOrderByIdQuery(id), ct);
+        var customer = await mediator.Send(new GetPartyByIdQuery(order.CustomerId), ct);
+        var bytes = PdfService.GenerateSalesOrderPdf(order, customer);
+        return File(bytes, "application/pdf", $"OV-{order.OrderNumber}.pdf");
+    }
 }
 
 public record AddOrderLineRequest(

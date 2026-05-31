@@ -350,6 +350,10 @@ export function SalesPage() {
                   Cancelar
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => downloadPdf(`/bff/sales/orders/${o.id}/pdf`, `OV-${o.orderNumber}.pdf`)}>
+                <FileDown className="mr-2 h-4 w-4" />Descargar PDF
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -416,7 +420,20 @@ export function SalesPage() {
               </SelectContent>
             </Select>
           </div>
-          <SalesTable table={quoteTable} columns={quoteColumns} isLoading={quotesLoading} />
+          <SalesTable
+            table={quoteTable} columns={quoteColumns} isLoading={quotesLoading}
+            mobileCards={
+              <QuoteCardList
+                quotes={quotes ?? []}
+                onSend={id => sendMut.mutate(id)}
+                onAccept={id => acceptMut.mutate(id)}
+                onReject={id => rejectMut.mutate(id)}
+                onConvert={openConvertDialog}
+                onAddLine={openLineDialog}
+                onDownloadPdf={(id, num) => downloadPdf(`/bff/sales/quotes/${id}/pdf`, `COT-${num}.pdf`)}
+              />
+            }
+          />
         </TabsContent>
 
         {/* ── Orders Tab ── */}
@@ -435,7 +452,17 @@ export function SalesPage() {
               </SelectContent>
             </Select>
           </div>
-          <SalesTable table={orderTable} columns={orderColumns} isLoading={ordersLoading} />
+          <SalesTable
+            table={orderTable} columns={orderColumns} isLoading={ordersLoading}
+            mobileCards={
+              <OrderCardList
+                orders={orders ?? []}
+                onConfirm={id => confirmMut.mutate(id)}
+                onCancel={openCancelDialog}
+                onDownloadPdf={(id, num) => downloadPdf(`/bff/sales/orders/${id}/pdf`, `OV-${num}.pdf`)}
+              />
+            }
+          />
         </TabsContent>
       </Tabs>
 
@@ -575,15 +602,25 @@ export function SalesPage() {
 // ── Shared table ──────────────────────────────────────────────────────────────
 
 function SalesTable<T>({
-  table, columns, isLoading,
+  table, columns, isLoading, mobileCards,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table: ReturnType<typeof useReactTable<T>>
   columns: unknown[]
   isLoading: boolean
+  mobileCards?: React.ReactNode
 }) {
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {isLoading
+          ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
+          : mobileCards}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-md border overflow-x-auto">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map(hg => (
@@ -631,6 +668,124 @@ function SalesTable<T>({
           )}
         </TableBody>
       </Table>
+      </div>
+    </>
+  )
+}
+
+// ── Mobile card components ────────────────────────────────────────────────────
+
+function QuoteCardList({
+  quotes, onSend, onAccept, onReject, onConvert, onAddLine, onDownloadPdf,
+}: {
+  quotes: QuoteDto[]
+  onSend: (id: string) => void
+  onAccept: (id: string) => void
+  onReject: (id: string) => void
+  onConvert: (id: string) => void
+  onAddLine: (id: string) => void
+  onDownloadPdf: (id: string, num: string) => void
+}) {
+  if (quotes.length === 0)
+    return <p className="text-center text-muted-foreground py-8 text-sm">No se encontraron cotizaciones</p>
+  return (
+    <div className="space-y-3">
+      {quotes.map(q => (
+        <div key={q.id} className="rounded-lg border bg-card p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-mono font-semibold text-sm">{q.quoteNumber}</span>
+            <Badge variant={QUOTE_STATUS_VARIANT[q.status]} className="shrink-0">{QUOTE_STATUS_LABELS[q.status]}</Badge>
+          </div>
+          <div>
+            <p className="font-medium text-sm leading-tight">{q.customerName}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Válida hasta: {q.validUntil}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-sm">{fmt(q.total, q.currencyCode)}</span>
+            <div className="flex items-center gap-2">
+              {q.status === 'Accepted' && (
+                <Button size="sm" className="h-8 gap-1 text-xs" onClick={() => onConvert(q.id)}>
+                  <ArrowRightCircle className="h-3 w-3" />Convertir
+                </Button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {q.status === 'Draft' && <>
+                    <DropdownMenuItem onClick={() => onAddLine(q.id)}>Agregar línea</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onSend(q.id)}>Enviar</DropdownMenuItem>
+                  </>}
+                  {q.status === 'Sent' && <>
+                    <DropdownMenuItem onClick={() => onAccept(q.id)}>Aceptar</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => onReject(q.id)}>Rechazar</DropdownMenuItem>
+                  </>}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onDownloadPdf(q.id, q.quoteNumber)}>
+                    <FileDown className="mr-2 h-4 w-4" />Descargar PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function OrderCardList({
+  orders, onConfirm, onCancel, onDownloadPdf,
+}: {
+  orders: SalesOrderDto[]
+  onConfirm: (id: string) => void
+  onCancel: (id: string) => void
+  onDownloadPdf: (id: string, num: string) => void
+}) {
+  if (orders.length === 0)
+    return <p className="text-center text-muted-foreground py-8 text-sm">No se encontraron órdenes</p>
+  return (
+    <div className="space-y-3">
+      {orders.map(o => (
+        <div key={o.id} className="rounded-lg border bg-card p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-mono font-semibold text-sm">{o.orderNumber}</span>
+            <Badge variant={ORDER_STATUS_VARIANT[o.status]} className="shrink-0">{ORDER_STATUS_LABELS[o.status]}</Badge>
+          </div>
+          <div>
+            <p className="font-medium text-sm leading-tight">{o.customerName}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{o.orderDate}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-sm">{fmt(o.total, o.currencyCode)}</span>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {o.status === 'Draft' && (
+                    <DropdownMenuItem onClick={() => onConfirm(o.id)}>Confirmar</DropdownMenuItem>
+                  )}
+                  {o.status === 'Confirmed' && (
+                    <DropdownMenuItem className="text-destructive" onClick={() => onCancel(o.id)}>Cancelar</DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onDownloadPdf(o.id, o.orderNumber)}>
+                    <FileDown className="mr-2 h-4 w-4" />Descargar PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

@@ -5,6 +5,7 @@ using Purchasing.Application.Common.Dtos;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Reporting.Application.Common.Dtos;
 using Sales.Application.Common.Dtos;
 
 namespace Api.WebApi.Infrastructure.Pdf;
@@ -297,11 +298,214 @@ public static class PdfService
         }).GeneratePdf();
     }
 
+    // ── Profit & Loss ─────────────────────────────────────────────────────────
+
+    public static byte[] GeneratePnlPdf(ProfitAndLossReportDto pnl)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                ApplyPageSettings(page);
+
+                page.Header().Element(c => BuildReportHeader(c,
+                    "ESTADO DE RESULTADOS",
+                    $"Del {pnl.From:dd/MM/yyyy} al {pnl.To:dd/MM/yyyy}"));
+
+                page.Content().PaddingTop(8).Column(col =>
+                {
+                    foreach (var section in pnl.Sections)
+                    {
+                        col.Item().PaddingTop(10).Text(section.Section.ToUpperInvariant())
+                            .FontSize(9).Bold().FontColor("#1e3a5f");
+
+                        col.Item().PaddingBottom(4).Table(t =>
+                        {
+                            t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(); });
+                            foreach (var line in section.Lines)
+                            {
+                                t.Cell().Background(Colors.White).Padding(4)
+                                    .Text($"  {line.AccountNumber}  {line.AccountName}").FontSize(9);
+                                t.Cell().Background(Colors.White).Padding(4).AlignRight()
+                                    .Text(Fmt(line.Amount, "")).FontSize(9);
+                            }
+                            t.Cell().Background("#f0f4f8").Padding(5)
+                                .Text($"Total {section.Section}").FontSize(9).Bold();
+                            t.Cell().Background("#f0f4f8").Padding(5).AlignRight()
+                                .Text(Fmt(section.Total, "")).FontSize(9).Bold();
+                        });
+                    }
+
+                    col.Item().PaddingTop(14).Background("#1e3a5f").Padding(10).Column(inner =>
+                    {
+                        void SummaryRow(string label, decimal value) =>
+                            inner.Item().Row(r =>
+                            {
+                                r.RelativeItem().Text(label).FontSize(10).FontColor(Colors.White);
+                                r.ConstantItem(140).AlignRight()
+                                    .Text(Fmt(value, "")).FontSize(10).Bold().FontColor("#a8c8e8");
+                            });
+
+                        SummaryRow("Utilidad bruta", pnl.GrossProfit);
+                        SummaryRow("Resultado operativo", pnl.OperatingIncome);
+                        inner.Item().PaddingTop(4).Row(r =>
+                        {
+                            r.RelativeItem().Text("UTILIDAD NETA").FontSize(12).Bold().FontColor(Colors.White);
+                            r.ConstantItem(140).AlignRight()
+                                .Text(Fmt(pnl.NetIncome, "")).FontSize(13).Bold()
+                                .FontColor(pnl.NetIncome >= 0 ? "#6ee7b7" : "#fca5a5");
+                        });
+                    });
+                });
+
+                page.Footer().Element(BuildFooter);
+            });
+        }).GeneratePdf();
+    }
+
+    // ── Balance Sheet ─────────────────────────────────────────────────────────
+
+    public static byte[] GenerateBalanceSheetPdf(BalanceSheetReportDto bs)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                ApplyPageSettings(page);
+
+                page.Header().Element(c => BuildReportHeader(c,
+                    "BALANCE GENERAL",
+                    $"Al {bs.AsOf:dd/MM/yyyy}"));
+
+                page.Content().PaddingTop(8).Column(col =>
+                {
+                    void Section(BalanceSheetSectionDto s, string color)
+                    {
+                        col.Item().PaddingTop(10).Text(s.Section.ToUpperInvariant())
+                            .FontSize(9).Bold().FontColor("#1e3a5f");
+                        col.Item().PaddingBottom(4).Table(t =>
+                        {
+                            t.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(); });
+                            foreach (var line in s.Lines)
+                            {
+                                t.Cell().Background(Colors.White).Padding(4)
+                                    .Text($"  {line.AccountNumber}  {line.AccountName}").FontSize(9);
+                                t.Cell().Background(Colors.White).Padding(4).AlignRight()
+                                    .Text(Fmt(line.Amount, "")).FontSize(9);
+                            }
+                            t.Cell().Background(color).Padding(5)
+                                .Text($"Total {s.Section}").FontSize(9).Bold().FontColor(Colors.White);
+                            t.Cell().Background(color).Padding(5).AlignRight()
+                                .Text(Fmt(s.Total, "")).FontSize(9).Bold().FontColor(Colors.White);
+                        });
+                    }
+
+                    Section(bs.Assets, "#1e3a5f");
+                    Section(bs.Liabilities, "#374151");
+                    Section(bs.Equity, "#374151");
+
+                    var balanced = bs.IsBalanced ? "✓ CUADRADO" : "✗ DESCUADRADO";
+                    var balColor = bs.IsBalanced ? "#065f46" : "#991b1b";
+                    col.Item().PaddingTop(12).Background(balColor).Padding(8).AlignCenter()
+                        .Text(balanced).FontSize(10).Bold().FontColor(Colors.White);
+                });
+
+                page.Footer().Element(BuildFooter);
+            });
+        }).GeneratePdf();
+    }
+
+    // ── Trial Balance ─────────────────────────────────────────────────────────
+
+    public static byte[] GenerateTrialBalancePdf(TrialBalanceReportDto tb)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                ApplyPageSettings(page);
+
+                page.Header().Element(c => BuildReportHeader(c,
+                    "BALANCE DE COMPROBACIÓN",
+                    $"Período fiscal: {tb.FiscalPeriod}"));
+
+                page.Content().PaddingTop(8).Table(t =>
+                {
+                    t.ColumnsDefinition(c =>
+                    {
+                        c.ConstantColumn(60);   // No. cuenta
+                        c.RelativeColumn(3);    // Nombre
+                        c.RelativeColumn();     // Tipo
+                        c.ConstantColumn(90);   // Débito
+                        c.ConstantColumn(90);   // Crédito
+                    });
+
+                    static void HCell(IContainer hc, string text) =>
+                        hc.Background("#1e3a5f").Padding(5)
+                          .Text(text).FontSize(9).Bold().FontColor(Colors.White);
+
+                    t.Header(h =>
+                    {
+                        h.Cell().Element(hc => HCell(hc, "Cuenta"));
+                        h.Cell().Element(hc => HCell(hc, "Nombre"));
+                        h.Cell().Element(hc => HCell(hc, "Tipo"));
+                        h.Cell().Element(hc => HCell(hc, "Débito"));
+                        h.Cell().Element(hc => HCell(hc, "Crédito"));
+                    });
+
+                    for (var i = 0; i < tb.Lines.Count; i++)
+                    {
+                        var line = tb.Lines[i];
+                        var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten5;
+                        void DCell(IContainer dc, string text, bool right = false)
+                        {
+                            var tx = dc.Background(bg).Padding(4).Text(text).FontSize(9);
+                            if (right) tx.AlignRight();
+                        }
+                        t.Cell().Element(dc => DCell(dc, line.AccountNumber));
+                        t.Cell().Element(dc => DCell(dc, line.AccountName));
+                        t.Cell().Element(dc => DCell(dc, line.AccountType));
+                        t.Cell().Element(dc => DCell(dc, Fmt(line.DebitBalance, ""), true));
+                        t.Cell().Element(dc => DCell(dc, Fmt(line.CreditBalance, ""), true));
+                    }
+
+                    // Totals
+                    t.Cell().ColumnSpan(3).Background("#1e3a5f").Padding(5)
+                        .Text("TOTALES").FontSize(9).Bold().FontColor(Colors.White).AlignRight();
+                    t.Cell().Background("#1e3a5f").Padding(5).AlignRight()
+                        .Text(Fmt(tb.TotalDebits, "")).FontSize(9).Bold().FontColor(Colors.White);
+                    t.Cell().Background("#1e3a5f").Padding(5).AlignRight()
+                        .Text(Fmt(tb.TotalCredits, "")).FontSize(9).Bold().FontColor(Colors.White);
+                });
+
+                page.Footer().Element(BuildFooter);
+            });
+        }).GeneratePdf();
+    }
+
     // ── Shared layout helpers ─────────────────────────────────────────────────
 
     private sealed record LineItem(
         string SKU, string Name, decimal Qty, decimal UnitPrice,
         decimal DiscountPct, decimal LineTotal, string Currency);
+
+    private static void BuildReportHeader(IContainer c, string title, string subtitle)
+    {
+        c.Column(col =>
+        {
+            col.Item().Background("#1e3a5f").Padding(12).Row(row =>
+            {
+                row.RelativeItem().Column(inner =>
+                {
+                    inner.Item().Text("ERP Platform").FontSize(14).Bold().FontColor(Colors.White);
+                    inner.Item().Text(title).FontSize(16).Bold().FontColor("#a8c8e8");
+                });
+                row.ConstantItem(200).AlignRight()
+                    .Text(subtitle).FontSize(10).FontColor(Colors.White);
+            });
+            col.Item().PaddingBottom(4);
+        });
+    }
 
     private static void ApplyPageSettings(PageDescriptor page)
     {

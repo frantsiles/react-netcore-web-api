@@ -81,12 +81,13 @@ export function ReportsPage() {
     enabled: runBs,
   })
 
-  const downloadExcel = async (path: string, filename: string) => {
+  const downloadFile = async (path: string, filename: string) => {
     const resp = await api.get(path, { responseType: 'blob' })
     const url = URL.createObjectURL(resp.data)
     const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
     URL.revokeObjectURL(url)
   }
+  const downloadExcel = (path: string, filename: string) => downloadFile(path, filename)
 
   return (
     <div className="space-y-6">
@@ -130,7 +131,7 @@ export function ReportsPage() {
           ) : (
             <p className="text-sm text-muted-foreground">No se pudo cargar el dashboard.</p>
           )}
-          <div className="flex gap-2 pt-2 border-t">
+          <div className="flex gap-2 pt-2 border-t flex-wrap">
             <span className="text-sm text-muted-foreground self-center">Exportar:</span>
             <Button variant="outline" size="sm" onClick={() => downloadExcel('/bff/reports/accounts-receivable-aging/export', `CxC-${new Date().toISOString().slice(0,10)}.xlsx`)}>
               <FileDown className="mr-1.5 h-3.5 w-3.5" />CxC Excel
@@ -138,14 +139,20 @@ export function ReportsPage() {
             <Button variant="outline" size="sm" onClick={() => downloadExcel('/bff/reports/accounts-payable-aging/export', `CxP-${new Date().toISOString().slice(0,10)}.xlsx`)}>
               <FileDown className="mr-1.5 h-3.5 w-3.5" />CxP Excel
             </Button>
+            <Button variant="outline" size="sm" onClick={() => downloadExcel('/bff/reports/inventory-position/export', `Inventario-${new Date().toISOString().slice(0,10)}.xlsx`)}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />Inventario Excel
+            </Button>
           </div>
         </TabsContent>
 
         {/* ── Balance General ── */}
         <TabsContent value="bs" className="space-y-4">
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-3 items-end flex-wrap">
             <p className="text-sm text-muted-foreground">Balance a fecha de hoy.</p>
             <Button onClick={() => setRunBs(true)}>Generar</Button>
+            <Button variant="outline" onClick={() => downloadFile('/bff/reports/balance-sheet/pdf', `BalanceGeneral-${new Date().toISOString().slice(0,10)}.pdf`)}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />Descargar PDF
+            </Button>
           </div>
           {runBs && (
             bsLoading ? <Skeleton className="h-64 w-full" /> : bs ? (
@@ -203,6 +210,9 @@ export function ReportsPage() {
               <Input value={fiscalPeriod} onChange={e => setFiscalPeriod(e.target.value)} placeholder="2026-05" className="w-36" />
             </div>
             <Button onClick={() => { setTbPeriod(fiscalPeriod); setRunTb(true) }}>Generar</Button>
+            <Button variant="outline" onClick={() => downloadFile(`/bff/reports/trial-balance/pdf?fiscalPeriod=${encodeURIComponent(fiscalPeriod)}`, `Balanza-${fiscalPeriod}.pdf`)}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />Descargar PDF
+            </Button>
           </div>
 
           {runTb && (
@@ -260,6 +270,9 @@ export function ReportsPage() {
               <Input type="date" value={pnlTo} onChange={e => setPnlTo(e.target.value)} className="w-40" />
             </div>
             <Button onClick={() => setRunPnl(true)}>Generar</Button>
+            <Button variant="outline" onClick={() => downloadFile(`/bff/reports/profit-and-loss/pdf?from=${pnlFrom}T00:00:00Z&to=${pnlTo}T23:59:59Z`, `PyG-${pnlFrom}-${pnlTo}.pdf`)}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />Descargar PDF
+            </Button>
           </div>
 
           {runPnl && (

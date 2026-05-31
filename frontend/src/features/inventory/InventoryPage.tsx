@@ -408,6 +408,13 @@ export function InventoryPage() {
             columns={itemColumns}
             isLoading={itemsLoading}
             emptyMessage="No hay existencias registradas"
+            mobileCards={
+              <InventoryCardList
+                items={items ?? []}
+                warehouseMap={warehouseMap}
+                onAdjust={openAdjustDialog}
+              />
+            }
           />
         </TabsContent>
 
@@ -650,15 +657,25 @@ function SimpleTable<T>({
   columns,
   isLoading,
   emptyMessage,
+  mobileCards,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table: ReturnType<typeof useReactTable<T>>;
   columns: unknown[];
   isLoading: boolean;
   emptyMessage: string;
+  mobileCards?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <>
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
+          : mobileCards}
+      </div>
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-md border overflow-x-auto">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
@@ -718,6 +735,64 @@ function SimpleTable<T>({
           )}
         </TableBody>
       </Table>
+      </div>
+    </>
+  );
+}
+
+// ── Inventory mobile card list ────────────────────────────────────────────────
+
+function InventoryCardList({
+  items,
+  warehouseMap,
+  onAdjust,
+}: {
+  items: InventoryItemDto[];
+  warehouseMap: Map<string, string>;
+  onAdjust: (id: string) => void;
+}) {
+  if (items.length === 0)
+    return (
+      <p className="text-center text-muted-foreground py-8 text-sm">
+        No hay artículos en inventario
+      </p>
+    );
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div key={item.id} className="rounded-lg border bg-card p-4 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-mono font-semibold text-sm">{item.sku}</span>
+            {item.isLowStock && (
+              <Badge variant="destructive" className="gap-1 shrink-0 text-xs">
+                <AlertTriangle className="h-3 w-3" />Bajo stock
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {warehouseMap.get(item.warehouseId) ?? item.warehouseId.slice(0, 8) + "…"}
+          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3 text-sm">
+              <span><span className="text-muted-foreground text-xs">Disp </span><span className="font-semibold text-green-700 dark:text-green-400">{item.quantityAvailable}</span></span>
+              <span><span className="text-muted-foreground text-xs">Res </span>{item.quantityReserved}</span>
+              {item.reorderPoint != null && (
+                <span><span className="text-muted-foreground text-xs">Reorden </span>{item.reorderPoint}</span>
+              )}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onAdjust(item.id)}>Ajustar</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

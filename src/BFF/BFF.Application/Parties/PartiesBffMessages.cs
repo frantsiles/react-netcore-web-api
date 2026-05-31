@@ -77,3 +77,7 @@ public record UpdatePartyProfileBffCommand(
 public record DeactivatePartyBffCommand(
     string BearerToken,
     Guid PartyId) : IRequest<Unit>;
+
+public record ReactivatePartyBffCommand(
+    string BearerToken,
+    Guid PartyId) : IRequest<Unit>;

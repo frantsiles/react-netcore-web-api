@@ -19,6 +19,9 @@ export const partiesService = {
   updateProfile: (id: string, body: UpdatePartyProfileBody) =>
     api.patch<PartyDto>(`/bff/parties/${id}/profile`, body).then(r => r.data),
 
+  reactivate: (id: string) =>
+    api.post(`/bff/parties/${id}/reactivate`),
+
   deactivate: (id: string) =>
     api.delete(`/bff/parties/${id}`),
 }

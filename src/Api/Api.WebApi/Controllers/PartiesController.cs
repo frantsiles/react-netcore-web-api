@@ -5,6 +5,7 @@ using Parties.Application.Commands.ActivateRole;
 using Parties.Application.Commands.AddAddress;
 using Parties.Application.Commands.AddContactPoint;
 using Parties.Application.Commands.DeactivateParty;
+using Parties.Application.Commands.ReactivateParty;
 using Parties.Application.Commands.DeactivateRole;
 using Parties.Application.Commands.RegisterParty;
 using Parties.Application.Commands.RemoveAddress;
@@ -111,6 +112,13 @@ public class PartiesController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new DeactivateRoleCommand(id, roleType), ct);
         return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/reactivate")]
+    public async Task<IActionResult> Reactivate(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new ReactivatePartyCommand(id), ct);
+        return NoContent();
     }
 
     [HttpDelete("{id:guid}")]

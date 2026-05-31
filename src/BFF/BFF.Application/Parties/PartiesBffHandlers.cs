@@ -87,3 +87,15 @@ public class DeactivatePartyBffCommandHandler(IApiClient apiClient)
         return Unit.Value;
     }
 }
+
+public class ReactivatePartyBffCommandHandler(IApiClient apiClient)
+    : IRequestHandler<ReactivatePartyBffCommand, Unit>
+{
+    public async Task<Unit> Handle(
+        ReactivatePartyBffCommand request, CancellationToken ct)
+    {
+        await apiClient.PostAsync<object>(
+            $"api/parties/{request.PartyId}/reactivate", new { }, request.BearerToken, ct);
+        return Unit.Value;
+    }
+}

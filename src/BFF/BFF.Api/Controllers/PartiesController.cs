@@ -54,6 +54,13 @@ public class PartiesController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:guid}/reactivate")]
+    public async Task<IActionResult> Reactivate(Guid id, CancellationToken ct)
+    {
+        await mediator.Send(new ReactivatePartyBffCommand(GetToken(), id), ct);
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
     {

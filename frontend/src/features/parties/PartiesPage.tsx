@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Plus, Search, MoreHorizontal, UserX, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, MoreHorizontal, UserX, UserCheck, Pencil, ChevronUp, ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,7 +51,15 @@ import {
 import { partiesService } from './partiesService'
 import type { PartyDto, PartyRoleType } from '@/types/erp/parties'
 
-// ── Schema ────────────────────────────────────────────────────────────────────
+// ── Schemas ───────────────────────────────────────────────────────────────────
+
+const editSchema = z.object({
+  legalName: z.string().min(2, 'Mínimo 2 caracteres'),
+  tradeName: z.string().optional(),
+  taxId:     z.string().optional(),
+})
+
+type EditForm = z.infer<typeof editSchema>
 
 const registerSchema = z.object({
   legalName:     z.string().min(2, 'Mínimo 2 caracteres'),
@@ -114,6 +122,7 @@ export function PartiesPage() {
 
   // Dialog state
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<PartyDto | null>(null)
 
   // Sorting
   const [sorting, setSorting] = useState<SortingState>([])
@@ -152,6 +161,26 @@ export function PartiesPage() {
     onError: () => toast.error('Error al desactivar'),
   })
 
+  const reactivateMutation = useMutation({
+    mutationFn: (id: string) => partiesService.reactivate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['parties'] })
+      toast.success('Parte reactivada')
+    },
+    onError: () => toast.error('Error al reactivar'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { legalName: string; tradeName?: string; taxId?: string } }) =>
+      partiesService.updateProfile(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['parties'] })
+      setEditTarget(null)
+      toast.success('Parte actualizada')
+    },
+    onError: () => toast.error('Error al actualizar'),
+  })
+
   // ── Form ───────────────────────────────────────────────────────────────────
 
   const form = useForm<RegisterForm>({
@@ -162,6 +191,31 @@ export function PartiesPage() {
       countryCode:   'US',
     },
   })
+
+  const editForm = useForm<EditForm>({
+    resolver: zodResolver(editSchema),
+  })
+
+  const onEditSubmit = (values: EditForm) => {
+    if (!editTarget) return
+    updateMutation.mutate({
+      id: editTarget.partyId,
+      body: {
+        legalName: values.legalName,
+        tradeName: values.tradeName || undefined,
+        taxId:     values.taxId || undefined,
+      },
+    })
+  }
+
+  const openEdit = (party: PartyDto) => {
+    editForm.reset({
+      legalName: party.legalName,
+      tradeName: party.tradeName ?? '',
+      taxId:     party.taxId ?? '',
+    })
+    setEditTarget(party)
+  }
 
   const onSubmit = (values: RegisterForm) => {
     registerMutation.mutate({
@@ -240,13 +294,24 @@ export function PartiesPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {row.original.isActive && (
+            <DropdownMenuItem onClick={() => openEdit(row.original)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+            {row.original.isActive ? (
               <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => deactivateMutation.mutate(row.original.partyId)}
               >
                 <UserX className="mr-2 h-4 w-4" />
                 Desactivar
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => reactivateMutation.mutate(row.original.partyId)}
+              >
+                <UserCheck className="mr-2 h-4 w-4" />
+                Reactivar
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -371,6 +436,40 @@ export function PartiesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={open => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Parte</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-legalName">Nombre Legal *</Label>
+              <Input id="edit-legalName" {...editForm.register('legalName')} />
+              {editForm.formState.errors.legalName && (
+                <p className="text-xs text-destructive">{editForm.formState.errors.legalName.message}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-tradeName">Nombre Comercial</Label>
+              <Input id="edit-tradeName" {...editForm.register('tradeName')} placeholder="Opcional" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-taxId">RFC / RUC / Tax ID</Label>
+              <Input id="edit-taxId" {...editForm.register('taxId')} placeholder="Opcional" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Register Dialog */}
       <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>

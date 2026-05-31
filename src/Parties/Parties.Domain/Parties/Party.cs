@@ -139,4 +139,10 @@ public class Party : AggregateRoot, ITenantEntity
         IsActive = false;
         SetUpdatedAt();
     }
+
+    public void Reactivate()
+    {
+        IsActive = true;
+        SetUpdatedAt();
+    }
 }
